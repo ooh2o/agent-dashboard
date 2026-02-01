@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Wifi, Battery, Volume2, Search } from 'lucide-react';
+import { Wifi, Battery, Volume2, Search, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/lib/stores/window-store';
+import { useTheme } from './theme-provider';
 import { getApp } from '@/lib/apps-registry';
 
 interface MenuBarProps {
@@ -15,6 +16,7 @@ export function MenuBar({ onSpotlightOpen }: MenuBarProps) {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
   const { activeWindowId, windows } = useWindowStore();
+  const { resolvedTheme, toggleMode } = useTheme();
 
   // Get active app name
   const activeWindow = windows.find(w => w.id === activeWindowId);
@@ -101,6 +103,21 @@ export function MenuBar({ onSpotlightOpen }: MenuBarProps) {
 
         {/* Status Icons */}
         <div className="flex items-center gap-2 text-zinc-400">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleMode}
+            className={cn(
+              'p-1 rounded transition-colors',
+              'hover:bg-white/10 hover:text-white'
+            )}
+            title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {resolvedTheme === 'dark' ? (
+              <Sun className="w-4 h-4" />
+            ) : (
+              <Moon className="w-4 h-4" />
+            )}
+          </button>
           <Volume2 className="w-4 h-4" />
           <Wifi className="w-4 h-4" />
           <div className="flex items-center gap-1">

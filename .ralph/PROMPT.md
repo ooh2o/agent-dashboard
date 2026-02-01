@@ -1,56 +1,58 @@
-# Agent Dashboard — Wire Real Data & Polish
+# Agent Dashboard — Final Polish
 
-## Current Status
-- ✅ Build passes
-- ✅ 16 apps built including Ralph Monitor
-- ✅ API routes created
-- 🔄 Apps need real Gateway connections
+## Context
+- User: Non-technical founder
+- Goal: Useful dashboard for full agentic approach
+- Gateway: Running on localhost:4280
 
-## Your Tasks (in order)
+## Tasks (all equal priority)
 
-### 1. Wire Apps to Real Data
-Connect these apps to actual OpenClaw Gateway (localhost:4280):
+### 1. Test with OpenClaw Gateway
+- Verify ALL apps connect to real Gateway
+- Test SSE events flow to Activity Monitor
+- Test error states (Gateway down, auth fail, timeout)
+- Ensure token auth works end-to-end
 
-- **Activity Monitor** → SSE `/api/events` for real-time tool calls
-- **Token Tracker / Cost Dashboard** → Real usage data from Gateway
-- **Memory Browser** → `/api/memory/*` endpoints
-- **Message Center** → `/api/messages/*` endpoints
-- **Tools Inspector** → Real tool usage stats
+### 2. Polish Animations (macOS exact feel)
+- Window open: Scale up + fade (like macOS)
+- Window close: Scale down + fade
+- Window minimize: Genie effect to dock
+- Dock icons: Bounce on launch
+- Smooth transitions everywhere
+- Use framer-motion for all animations
 
-### 2. Complete Ralph Monitor
-Add missing endpoints:
-- `POST /api/ralph/[project]/start` — Start Ralph loop (spawn process)
-- `POST /api/ralph/[project]/stop` — Kill Ralph process
+### 3. Keyboard Shortcuts (standard macOS)
+- Cmd+Space: Open Spotlight
+- Cmd+W: Close focused window
+- Cmd+M: Minimize focused window
+- Cmd+Q: Quit/close app
+- Cmd+1/2/3: Switch between open windows
+- Escape: Close modals/spotlight
+- Register globally, handle focus properly
 
-### 3. Test SSE Connection
-Verify SSE events flow from Gateway:
-- Check `src/app/api/events/route.ts`
-- Ensure proper EventSource handling in components
+### 4. Dark Mode
+- Follow system preference by default
+- Toggle in menu bar (sun/moon icon)
+- Also in Settings app
+- Ensure all components respect theme
+- Smooth transition between modes
 
-### 4. Polish UI
-- Smooth window animations (open/close/minimize)
-- Keyboard shortcuts (Cmd+Space for Spotlight)
-- Fix any TypeScript errors
-
-## Development Commands
+## Development
 ```bash
-pnpm dev      # Start dev server
-pnpm build    # Production build
+pnpm dev      # Dev server
+pnpm build    # Must pass
 pnpm test     # Run tests
 ```
 
-## Key Files
-- `src/components/apps/` — All app components
-- `src/app/api/` — API routes (proxy to Gateway)
-- `src/lib/apps-registry.ts` — App registration
+## Verification
+- All apps render and connect
+- Animations feel native macOS
+- All shortcuts work
+- Dark/light mode toggles smoothly
+- Build passes with no errors
 
-## Gateway Info
-- URL: `http://localhost:4280`
-- SSE: `/api/events`
-- Auth: Token in localStorage
-
-## CRITICAL: Completion Format
-When ALL tasks complete:
+## CRITICAL: Completion
+When ALL tasks verified working:
 
 ```
 ---RALPH_STATUS---
