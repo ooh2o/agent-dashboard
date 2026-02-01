@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
             'Accept': 'text/event-stream',
             'Cache-Control': 'no-cache',
           },
-          // @ts-expect-error - signal for fetch abort
           signal: request.signal,
         });
 

@@ -26,6 +26,7 @@ const eventConfig: Record<
   web_search: { icon: Search, color: 'text-blue-400', bgColor: 'bg-blue-400/10' },
   memory_read: { icon: FileText, color: 'text-green-400', bgColor: 'bg-green-400/10' },
   memory_write: { icon: Edit3, color: 'text-emerald-400', bgColor: 'bg-emerald-400/10' },
+  memory_access: { icon: FileText, color: 'text-lime-400', bgColor: 'bg-lime-400/10' },
   thinking: { icon: Brain, color: 'text-purple-400', bgColor: 'bg-purple-400/10' },
   tool_call: { icon: Wrench, color: 'text-orange-400', bgColor: 'bg-orange-400/10' },
   file_read: { icon: FileText, color: 'text-cyan-400', bgColor: 'bg-cyan-400/10' },
