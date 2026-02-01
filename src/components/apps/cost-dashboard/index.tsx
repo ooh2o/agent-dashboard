@@ -180,9 +180,12 @@ export function CostDashboard({
       setIsLoading(true);
       try {
         const response = await fetch('/api/live/stats/efficiency');
+        if (!response.ok) {
+          throw new Error(`API returned ${response.status}`);
+        }
         const data = await response.json();
 
-        if (data.ok && data.efficiency) {
+        if (data.ok && data.efficiency && data.efficiency.ratings) {
           // Convert API response to EfficiencyMetrics format
           const metrics: EfficiencyMetrics = {
             outputInputRatio: data.efficiency.outputInputRatio,

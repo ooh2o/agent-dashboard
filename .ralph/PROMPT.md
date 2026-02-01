@@ -1,166 +1,98 @@
-# Task: Connect Dashboard to OpenClaw Gateway WebSocket
+# Agent Dashboard QA & Bug Fixes
 
 ## Context
-The Dashboard currently reads OpenClaw data from files, but the Gateway exposes a WebSocket RPC API that provides real-time access to:
-- Cron jobs (`cron.list`, `cron.status`)
-- Sessions (`sessions.list`, `sessions.history`)
-- Config (`config.get`)
-- And more
+This is a macOS-style dashboard for AI agent oversight. Built with Next.js 16, TypeScript, Tailwind CSS, Framer Motion.
 
-**Goal:** Connect the Dashboard directly to Gateway WebSocket for live data instead of file parsing.
+## Priority 1: Critical Bugs
 
-## Gateway Connection Details
-- **WebSocket URL:** `ws://localhost:18789`
-- **Auth Token:** Read from env `OPENCLAW_GATEWAY_TOKEN` or use: `60ebdeb19ae1a66eed1ecc86293c9b4e3b603b24229522f8`
-- **Protocol:** JSON-RPC over WebSocket
+### 1.1 Cost Dashboard fetchEfficiency Error
+- **File:** `src/components/apps/cost-dashboard/index.tsx`
+- **Issue:** Console error at line 256/278 in fetchEfficiency function
+- **Fix:** Add proper error handling, check API response before accessing properties
 
-## RPC Call Format
-```javascript
-// Send:
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "cron.list",
-  "params": {}
-}
+### 1.2 Middleware Deprecation
+- **File:** `middleware.ts` or similar
+- **Issue:** Next.js warning about middleware convention
+- **Fix:** Update to use "proxy" convention per Next.js 16 guidelines
 
-// Receive:
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": { "jobs": [...] }
-}
-```
+## Priority 2: App Functionality
 
-## Implementation Steps
+### 2.1 Verify All 15 Apps Render Without Errors
+Apps to check:
+- Activity Monitor
+- Memory Browser
+- Message Center
+- Cost Dashboard
+- Agent Spawner
+- File Browser
+- Settings
+- Tools Inspector
+- Calendar & Cron
+- Notification Center
+- Terminal Console
+- Task Queue
+- Workflows
+- Analytics Dashboard
+- Ralph Monitor
 
-### 1. Create Gateway Client Library
-Create `src/lib/gateway-client.ts`:
-- WebSocket connection manager (singleton)
-- Auto-reconnect on disconnect
-- Request/response correlation (by id)
-- Auth header: `Authorization: Bearer <token>`
-- Typed RPC methods
+For each app:
+1. Ensure it renders without console errors
+2. Ensure loading states work
+3. Ensure error states are handled gracefully
+4. Mock data displays correctly when no real data
 
-```typescript
-// Example structure
-class GatewayClient {
-  private ws: WebSocket | null = null;
-  private requestId = 0;
-  private pending = new Map<number, { resolve, reject }>();
-  
-  async connect(): Promise<void>;
-  async call<T>(method: string, params?: object): Promise<T>;
-  
-  // Typed methods
-  async cronList(): Promise<CronJob[]>;
-  async cronStatus(): Promise<CronStatus>;
-  async sessionsList(opts?: SessionsListOpts): Promise<Session[]>;
-  async configGet(): Promise<Config>;
-}
-```
+### 2.2 Gateway Integration
+- Ensure apps gracefully fall back when Gateway is unavailable
+- Show "Not connected" states instead of errors
+- Add reconnection logic where missing
 
-### 2. Update Cron API Route
-Update `src/app/api/live/cron/route.ts`:
-- Use GatewayClient instead of file reading
-- Call `cron.list` via WebSocket RPC
-- Return formatted cron jobs
+## Priority 3: UI/UX Polish
 
-```typescript
-import { getGatewayClient } from '@/lib/gateway-client';
+### 3.1 Window Management
+- Windows should be draggable
+- Windows should be resizable
+- Window z-index should update on focus
+- Close/minimize/maximize buttons should work
 
-export async function GET() {
-  try {
-    const client = await getGatewayClient();
-    const { jobs } = await client.cronList();
-    return Response.json({ ok: true, jobs });
-  } catch (error) {
-    return Response.json({ ok: false, error: error.message }, { status: 500 });
-  }
-}
-```
+### 3.2 Responsive Design
+- Dashboard should work at different screen sizes
+- Sidebar should collapse on smaller screens
+- Widgets should reflow appropriately
 
-### 3. Add Environment Variable
-Create/update `.env.local`:
-```
-OPENCLAW_GATEWAY_URL=ws://localhost:18789
-OPENCLAW_GATEWAY_TOKEN=60ebdeb19ae1a66eed1ecc86293c9b4e3b603b24229522f8
-```
+### 3.3 Dark Mode
+- Ensure all components respect dark mode
+- No white flashes on load
+- Consistent color scheme
 
-### 4. Update Sessions API
-Update `src/app/api/live/sessions/route.ts`:
-- Use `sessions.list` RPC call
-- Get real session data from Gateway
+## Priority 4: Testing
 
-### 5. Add SSE Stream for Real-time Updates (Optional Enhancement)
-Create `src/app/api/live/stream/route.ts`:
-- Connect to Gateway SSE if available
-- Forward events to Dashboard clients
+### 4.1 Add Missing Tests
+- Test all app components render
+- Test API routes return expected shapes
+- Test error handling paths
 
-## Type Definitions
+### 4.2 Fix Flaky Tests
+- Address any timing issues
+- Mock external dependencies properly
 
-```typescript
-interface CronJob {
-  id: string;
-  name?: string;
-  enabled: boolean;
-  schedule: {
-    kind: 'at' | 'every' | 'cron';
-    expr?: string;  // for cron kind
-    tz?: string;
-    atMs?: number;  // for at kind
-    everyMs?: number; // for every kind
-  };
-  sessionTarget: 'main' | 'isolated';
-  payload: {
-    kind: 'systemEvent' | 'agentTurn';
-    message?: string;
-    text?: string;
-  };
-  state?: {
-    nextRunAtMs?: number;
-    lastRunAtMs?: number;
-  };
-}
+## Technical Guidelines
 
-interface Session {
-  key: string;
-  agentId: string;
-  channel: string;
-  lastActivityAt: number;
-  messageCount: number;
-}
-```
+- TypeScript strict mode, no `any` types
+- All API calls should have try/catch
+- Use proper loading/error states
+- Follow existing code patterns
+- Run `npm run build` to verify no TypeScript errors
+- Run `npm test` to verify tests pass
 
-## Files to Create/Modify
+## Completion Criteria
 
-1. **CREATE** `src/lib/gateway-client.ts` — WebSocket RPC client
-2. **CREATE** `src/lib/gateway-types.ts` — TypeScript types for Gateway data
-3. **UPDATE** `src/app/api/live/cron/route.ts` — Use Gateway client
-4. **UPDATE** `src/app/api/live/sessions/route.ts` — Use Gateway client  
-5. **CREATE** `.env.local` — Gateway connection config
-6. **UPDATE** `.env.example` — Document required env vars
+1. `npm run build` passes with no errors
+2. `npm test` passes with no failures  
+3. No console errors when loading dashboard
+4. All 15 apps render without crashing
+5. Gateway-dependent features show graceful fallbacks
 
-## Testing
-
-After implementation:
-1. Run `pnpm dev`
-2. Open Dashboard
-3. Check Cron app shows real cron job: "DACH Sales Intelligence Briefing"
-4. Check Sessions show real session data
-
-## Error Handling
-
-- If Gateway not reachable: show "Gateway offline" in UI
-- If auth fails: log error, return empty data
-- Auto-reconnect on WebSocket close
-
-## CRITICAL: Exit Signal
-When Gateway WebSocket integration is working for cron and sessions, output:
-
-```
 ---RALPH_STATUS---
-STATUS: COMPLETE  
+STATUS: COMPLETE
 EXIT_SIGNAL: true
 ---END_RALPH_STATUS---
-```
