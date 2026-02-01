@@ -3,6 +3,7 @@ export type EventType =
   | 'thinking'
   | 'memory_read'
   | 'memory_write'
+  | 'memory_access'
   | 'file_read'
   | 'file_write'
   | 'web_search'

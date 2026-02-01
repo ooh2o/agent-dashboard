@@ -52,8 +52,10 @@ export interface AgentEvent {
 export interface EventStreamOptions {
   /** Auto-connect on mount (default: true) */
   autoConnect?: boolean;
-  /** Reconnect delay in ms (default: 3000) */
+  /** Initial reconnect delay in ms (default: 1000) */
   reconnectDelay?: number;
+  /** Max reconnect delay in ms for exponential backoff (default: 30000) */
+  maxReconnectDelay?: number;
   /** Max reconnect attempts (default: 10) */
   maxReconnectAttempts?: number;
 
@@ -67,6 +69,23 @@ export interface EventStreamOptions {
   onError?: (error: string) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
+  onReconnecting?: (attempt: number, maxAttempts: number) => void;
+}
+
+/**
+ * Calculate exponential backoff delay
+ * Uses formula: min(maxDelay, baseDelay * 2^attempt) with jitter
+ */
+export function calculateBackoffDelay(
+  attempt: number,
+  baseDelay: number,
+  maxDelay: number
+): number {
+  const exponentialDelay = baseDelay * Math.pow(2, attempt);
+  const cappedDelay = Math.min(exponentialDelay, maxDelay);
+  // Add jitter (±10%) to prevent thundering herd
+  const jitter = cappedDelay * 0.1 * (Math.random() * 2 - 1);
+  return Math.round(cappedDelay + jitter);
 }
 
 /**
@@ -78,11 +97,15 @@ export interface EventStreamOptions {
  * - Cost updates
  * - Messages from channels
  * - Spawned agent events
+ *
+ * Features exponential backoff for reconnection with configurable
+ * base delay and maximum delay.
  */
 export function useEventStream(options: EventStreamOptions = {}) {
   const {
     autoConnect = true,
-    reconnectDelay = 3000,
+    reconnectDelay = 1000,
+    maxReconnectDelay = 30000,
     maxReconnectAttempts = 10,
   } = options;
 
@@ -93,6 +116,7 @@ export function useEventStream(options: EventStreamOptions = {}) {
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   // Keep options ref updated
   useEffect(() => {
@@ -120,6 +144,7 @@ export function useEventStream(options: EventStreamOptions = {}) {
       setIsConnected(true);
       setConnectionError(null);
       reconnectAttemptsRef.current = 0;
+      setReconnectAttempt(0);
       optionsRef.current.onConnect?.();
     };
 
@@ -187,14 +212,27 @@ export function useEventStream(options: EventStreamOptions = {}) {
       // Only reconnect if this is still the active event source
       if (eventSourceRef.current === eventSource) {
         reconnectAttemptsRef.current += 1;
+        const currentAttempt = reconnectAttemptsRef.current;
+        setReconnectAttempt(currentAttempt);
 
-        if (reconnectAttemptsRef.current <= maxReconnectAttempts) {
-          setConnectionError(
-            `Connection lost. Reconnecting (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`
+        if (currentAttempt <= maxReconnectAttempts) {
+          // Calculate exponential backoff delay
+          const delay = calculateBackoffDelay(
+            currentAttempt - 1,
+            reconnectDelay,
+            maxReconnectDelay
           );
+
+          setConnectionError(
+            `Connection lost. Reconnecting in ${Math.round(delay / 1000)}s (${currentAttempt}/${maxReconnectAttempts})...`
+          );
+
+          // Notify about reconnection attempt
+          optionsRef.current.onReconnecting?.(currentAttempt, maxReconnectAttempts);
+
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
-          }, reconnectDelay);
+          }, delay);
         } else {
           setConnectionError(
             'Connection failed. Max reconnect attempts reached.'
@@ -202,7 +240,7 @@ export function useEventStream(options: EventStreamOptions = {}) {
         }
       }
     };
-  }, [reconnectDelay, maxReconnectAttempts]);
+  }, [reconnectDelay, maxReconnectDelay, maxReconnectAttempts]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -230,11 +268,13 @@ export function useEventStream(options: EventStreamOptions = {}) {
   return {
     isConnected,
     connectionError,
+    reconnectAttempt,
     connect,
     disconnect,
     /** Manually reset reconnect attempts counter */
     resetReconnectAttempts: useCallback(() => {
       reconnectAttemptsRef.current = 0;
+      setReconnectAttempt(0);
     }, []),
   };
 }

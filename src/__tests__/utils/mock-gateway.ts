@@ -108,21 +108,26 @@ export function mockGatewayFetch(responseData: unknown, status = 200) {
   });
 }
 
+// Store for tracking EventSource instances
+export const mockEventSourceInstances: MockEventSource[] = [];
+
 // Mock SSE connection for real-time events
 export class MockEventSource {
   url: string;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   onopen: ((event: Event) => void) | null = null;
-  readyState: number = EventSource.CONNECTING;
+  readyState: number = 0; // CONNECTING
 
   private eventListeners: Map<string, ((event: MessageEvent) => void)[]> = new Map();
 
   constructor(url: string) {
     this.url = url;
+    // Track this instance
+    mockEventSourceInstances.push(this);
     // Simulate connection after a tick
     setTimeout(() => {
-      this.readyState = EventSource.OPEN;
+      this.readyState = 1; // OPEN
       if (this.onopen) {
         this.onopen(new Event('open'));
       }
@@ -144,7 +149,7 @@ export class MockEventSource {
   }
 
   close() {
-    this.readyState = EventSource.CLOSED;
+    this.readyState = 2; // CLOSED
   }
 
   // Test helper to emit events
@@ -163,18 +168,28 @@ export class MockEventSource {
 
   // Test helper to simulate error
   emitError() {
-    this.readyState = EventSource.CLOSED;
+    this.readyState = 2; // CLOSED
     if (this.onerror) {
       this.onerror(new Event('error'));
     }
   }
 }
 
+// Clear instances (call in beforeEach)
+export function clearMockEventSourceInstances() {
+  mockEventSourceInstances.length = 0;
+}
+
+// Get the latest instance
+export function getLatestMockEventSource(): MockEventSource | undefined {
+  return mockEventSourceInstances[mockEventSourceInstances.length - 1];
+}
+
 // Setup mock EventSource globally
 export function setupMockEventSource() {
-  const mockEventSource = MockEventSource;
-  (global as unknown as { EventSource: typeof MockEventSource }).EventSource = mockEventSource;
-  return mockEventSource;
+  clearMockEventSourceInstances();
+  (global as unknown as { EventSource: typeof MockEventSource }).EventSource = MockEventSource;
+  return MockEventSource;
 }
 
 // Create mock gateway client for testing
