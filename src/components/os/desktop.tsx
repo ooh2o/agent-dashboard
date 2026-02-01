@@ -17,6 +17,14 @@ const TerminalConsole = lazy(() => import('@/components/apps/terminal').then(m =
 const Workflows = lazy(() => import('@/components/apps/workflows').then(m => ({ default: m.Workflows })));
 const AnalyticsDashboard = lazy(() => import('@/components/apps/analytics').then(m => ({ default: m.AnalyticsDashboard })));
 const RalphMonitor = lazy(() => import('@/components/apps/ralph-monitor').then(m => ({ default: m.RalphMonitor })));
+const MemoryBrowser = lazy(() => import('@/components/apps/memory-browser').then(m => ({ default: m.MemoryBrowser })));
+const FileBrowser = lazy(() => import('@/components/apps/file-browser').then(m => ({ default: m.FileBrowser })));
+const AgentSpawner = lazy(() => import('@/components/apps/agent-spawner').then(m => ({ default: m.AgentSpawner })));
+const CalendarApp = lazy(() => import('@/components/apps/calendar').then(m => ({ default: m.CalendarApp })));
+const SettingsApp = lazy(() => import('@/components/apps/settings').then(m => ({ default: m.SettingsApp })));
+const ToolsInspector = lazy(() => import('@/components/apps/tools-inspector').then(m => ({ default: m.ToolsInspector })));
+const NotificationCenter = lazy(() => import('@/components/apps/notifications').then(m => ({ default: m.NotificationCenter })));
+const TaskQueue = lazy(() => import('@/components/apps/task-queue').then(m => ({ default: m.TaskQueue })));
 
 // Wrapper for ActivityMonitor to inject activities from store
 function ActivityMonitor({ onClose, onMinimize, onMaximize }: {
@@ -50,6 +58,14 @@ const APP_COMPONENTS: Record<string, React.ComponentType<{
   'workflows': Workflows,
   'analytics': AnalyticsDashboard,
   'ralph-monitor': RalphMonitor,
+  'memory-browser': MemoryBrowser,
+  'file-browser': FileBrowser,
+  'agent-spawner': AgentSpawner,
+  'calendar': CalendarApp,
+  'settings': SettingsApp,
+  'tools-inspector': ToolsInspector,
+  'notifications': NotificationCenter,
+  'task-queue': TaskQueue,
 };
 
 function AppContent({ win }: { win: WindowState }) {

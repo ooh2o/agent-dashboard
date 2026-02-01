@@ -97,6 +97,7 @@ export const DOCK_APPS = [
   'activity-monitor',
   'memory-browser',
   'message-center',
+  'file-browser',
   'agent-spawner',
   'ralph-monitor',
   'terminal',
