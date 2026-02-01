@@ -1,0 +1,329 @@
+/* OpenClaw OS Theme System */
+/* Beautiful dark mode by default, clean bright light mode */
+
+:root {
+  /* Transition for smooth theme switching */
+  --theme-transition-duration: 200ms;
+  --theme-transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Accent color (defaults to blue) */
+  --accent-hue: 220;
+  --accent-saturation: 100%;
+
+  /* Radius */
+  --radius: 0.625rem;
+}
+
+/* ============================================
+   DARK MODE (Default - Beautiful & Rich)
+   ============================================ */
+.dark,
+:root:not(.light) {
+  /* Background layers - Deep rich blacks with subtle warmth */
+  --os-bg-base: oklch(0.10 0.005 250);
+  --os-bg-elevated: oklch(0.13 0.005 250);
+  --os-bg-surface: oklch(0.16 0.005 250);
+  --os-bg-overlay: oklch(0.19 0.006 250);
+  --os-bg-hover: oklch(0.22 0.008 250);
+
+  /* Foreground - Crisp whites with good readability */
+  --os-fg-primary: oklch(0.97 0.002 250);
+  --os-fg-secondary: oklch(0.78 0.008 250);
+  --os-fg-muted: oklch(0.58 0.010 250);
+  --os-fg-subtle: oklch(0.45 0.008 250);
+  --os-fg-disabled: oklch(0.35 0.005 250);
+
+  /* Borders - Subtle glass-like borders */
+  --os-border-subtle: oklch(0.28 0.008 250);
+  --os-border-default: oklch(0.32 0.010 250);
+  --os-border-strong: oklch(0.40 0.012 250);
+  --os-border-focus: oklch(0.60 0.180 var(--accent-hue));
+
+  /* Shadows - Dramatic depth */
+  --os-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+  --os-shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.4), 0 2px 4px -2px oklch(0 0 0 / 0.3);
+  --os-shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.5), 0 4px 6px -4px oklch(0 0 0 / 0.4);
+  --os-shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.5), 0 8px 10px -6px oklch(0 0 0 / 0.4);
+  --os-shadow-glow: 0 0 20px oklch(0.60 0.200 var(--accent-hue) / 0.3);
+
+  /* Status colors */
+  --os-success: oklch(0.72 0.200 145);
+  --os-success-bg: oklch(0.25 0.050 145);
+  --os-warning: oklch(0.80 0.180 75);
+  --os-warning-bg: oklch(0.28 0.050 75);
+  --os-error: oklch(0.65 0.220 25);
+  --os-error-bg: oklch(0.25 0.060 25);
+  --os-info: oklch(0.70 0.180 220);
+  --os-info-bg: oklch(0.22 0.050 220);
+
+  /* Interactive states */
+  --os-interactive-hover: oklch(1 0 0 / 0.05);
+  --os-interactive-active: oklch(1 0 0 / 0.08);
+  --os-interactive-selected: oklch(0.55 0.180 var(--accent-hue) / 0.15);
+
+  /* Window chrome */
+  --os-window-bg: oklch(0.14 0.006 250);
+  --os-window-border: oklch(0.30 0.010 250);
+  --os-window-titlebar: oklch(0.16 0.006 250);
+  --os-window-shadow: 0 25px 50px -12px oklch(0 0 0 / 0.6);
+
+  /* Dock */
+  --os-dock-bg: oklch(0.12 0.005 250 / 0.85);
+  --os-dock-border: oklch(0.35 0.010 250);
+  --os-dock-item-hover: oklch(1 0 0 / 0.08);
+
+  /* Menu bar */
+  --os-menubar-bg: oklch(0.11 0.005 250 / 0.90);
+  --os-menubar-border: oklch(0.25 0.008 250);
+
+  /* Input fields */
+  --os-input-bg: oklch(0.12 0.005 250);
+  --os-input-border: oklch(0.30 0.008 250);
+  --os-input-focus: oklch(0.55 0.180 var(--accent-hue));
+  --os-input-placeholder: oklch(0.45 0.008 250);
+
+  /* Scrollbar */
+  --os-scrollbar-track: oklch(0.15 0.005 250);
+  --os-scrollbar-thumb: oklch(0.30 0.010 250);
+  --os-scrollbar-thumb-hover: oklch(0.40 0.012 250);
+
+  /* Charts & data viz */
+  --os-chart-1: oklch(0.65 0.200 var(--accent-hue));
+  --os-chart-2: oklch(0.70 0.180 280);
+  --os-chart-3: oklch(0.75 0.160 145);
+  --os-chart-4: oklch(0.78 0.180 75);
+  --os-chart-5: oklch(0.72 0.200 340);
+
+  /* Backdrop blur */
+  --os-blur-sm: blur(4px);
+  --os-blur-md: blur(8px);
+  --os-blur-lg: blur(16px);
+  --os-blur-xl: blur(24px);
+}
+
+/* ============================================
+   LIGHT MODE (Clean & Bright)
+   ============================================ */
+.light {
+  /* Background layers - Clean whites with subtle depth */
+  --os-bg-base: oklch(0.985 0.002 250);
+  --os-bg-elevated: oklch(1.00 0 0);
+  --os-bg-surface: oklch(0.975 0.002 250);
+  --os-bg-overlay: oklch(0.965 0.003 250);
+  --os-bg-hover: oklch(0.95 0.005 250);
+
+  /* Foreground - Rich blacks for good contrast */
+  --os-fg-primary: oklch(0.15 0.005 250);
+  --os-fg-secondary: oklch(0.35 0.010 250);
+  --os-fg-muted: oklch(0.50 0.012 250);
+  --os-fg-subtle: oklch(0.62 0.010 250);
+  --os-fg-disabled: oklch(0.72 0.008 250);
+
+  /* Borders - Clean subtle lines */
+  --os-border-subtle: oklch(0.92 0.005 250);
+  --os-border-default: oklch(0.88 0.008 250);
+  --os-border-strong: oklch(0.82 0.010 250);
+  --os-border-focus: oklch(0.55 0.200 var(--accent-hue));
+
+  /* Shadows - Soft natural shadows */
+  --os-shadow-sm: 0 1px 2px oklch(0.15 0.01 250 / 0.08);
+  --os-shadow-md: 0 4px 6px -1px oklch(0.15 0.01 250 / 0.10), 0 2px 4px -2px oklch(0.15 0.01 250 / 0.06);
+  --os-shadow-lg: 0 10px 15px -3px oklch(0.15 0.01 250 / 0.12), 0 4px 6px -4px oklch(0.15 0.01 250 / 0.08);
+  --os-shadow-xl: 0 20px 25px -5px oklch(0.15 0.01 250 / 0.14), 0 8px 10px -6px oklch(0.15 0.01 250 / 0.10);
+  --os-shadow-glow: 0 0 20px oklch(0.55 0.200 var(--accent-hue) / 0.20);
+
+  /* Status colors */
+  --os-success: oklch(0.55 0.180 145);
+  --os-success-bg: oklch(0.94 0.035 145);
+  --os-warning: oklch(0.60 0.160 70);
+  --os-warning-bg: oklch(0.96 0.040 70);
+  --os-error: oklch(0.55 0.200 25);
+  --os-error-bg: oklch(0.96 0.040 25);
+  --os-info: oklch(0.52 0.180 230);
+  --os-info-bg: oklch(0.95 0.035 230);
+
+  /* Interactive states */
+  --os-interactive-hover: oklch(0.15 0.01 250 / 0.04);
+  --os-interactive-active: oklch(0.15 0.01 250 / 0.07);
+  --os-interactive-selected: oklch(0.55 0.200 var(--accent-hue) / 0.10);
+
+  /* Window chrome */
+  --os-window-bg: oklch(1 0 0);
+  --os-window-border: oklch(0.88 0.008 250);
+  --os-window-titlebar: oklch(0.975 0.003 250);
+  --os-window-shadow: 0 25px 50px -12px oklch(0.15 0.01 250 / 0.20);
+
+  /* Dock */
+  --os-dock-bg: oklch(0.98 0.002 250 / 0.90);
+  --os-dock-border: oklch(0.88 0.008 250);
+  --os-dock-item-hover: oklch(0.15 0.01 250 / 0.05);
+
+  /* Menu bar */
+  --os-menubar-bg: oklch(0.985 0.002 250 / 0.92);
+  --os-menubar-border: oklch(0.90 0.006 250);
+
+  /* Input fields */
+  --os-input-bg: oklch(0.99 0.001 250);
+  --os-input-border: oklch(0.88 0.008 250);
+  --os-input-focus: oklch(0.55 0.200 var(--accent-hue));
+  --os-input-placeholder: oklch(0.62 0.010 250);
+
+  /* Scrollbar */
+  --os-scrollbar-track: oklch(0.96 0.003 250);
+  --os-scrollbar-thumb: oklch(0.82 0.008 250);
+  --os-scrollbar-thumb-hover: oklch(0.72 0.010 250);
+
+  /* Charts & data viz */
+  --os-chart-1: oklch(0.55 0.200 var(--accent-hue));
+  --os-chart-2: oklch(0.58 0.180 280);
+  --os-chart-3: oklch(0.55 0.160 145);
+  --os-chart-4: oklch(0.62 0.180 70);
+  --os-chart-5: oklch(0.58 0.200 340);
+}
+
+/* ============================================
+   ACCENT COLORS
+   ============================================ */
+.accent-blue {
+  --accent-hue: 220;
+  --os-accent: oklch(0.60 0.200 220);
+  --os-accent-hover: oklch(0.55 0.220 220);
+  --os-accent-active: oklch(0.50 0.230 220);
+  --os-accent-subtle: oklch(0.60 0.200 220 / 0.15);
+  --os-accent-fg: oklch(0.98 0.005 220);
+}
+
+.accent-purple {
+  --accent-hue: 280;
+  --os-accent: oklch(0.60 0.200 280);
+  --os-accent-hover: oklch(0.55 0.220 280);
+  --os-accent-active: oklch(0.50 0.230 280);
+  --os-accent-subtle: oklch(0.60 0.200 280 / 0.15);
+  --os-accent-fg: oklch(0.98 0.005 280);
+}
+
+.accent-green {
+  --accent-hue: 145;
+  --os-accent: oklch(0.65 0.180 145);
+  --os-accent-hover: oklch(0.60 0.200 145);
+  --os-accent-active: oklch(0.55 0.210 145);
+  --os-accent-subtle: oklch(0.65 0.180 145 / 0.15);
+  --os-accent-fg: oklch(0.12 0.010 145);
+}
+
+.accent-orange {
+  --accent-hue: 40;
+  --os-accent: oklch(0.72 0.180 40);
+  --os-accent-hover: oklch(0.68 0.200 40);
+  --os-accent-active: oklch(0.64 0.210 40);
+  --os-accent-subtle: oklch(0.72 0.180 40 / 0.15);
+  --os-accent-fg: oklch(0.15 0.010 40);
+}
+
+.accent-pink {
+  --accent-hue: 340;
+  --os-accent: oklch(0.68 0.200 340);
+  --os-accent-hover: oklch(0.63 0.220 340);
+  --os-accent-active: oklch(0.58 0.230 340);
+  --os-accent-subtle: oklch(0.68 0.200 340 / 0.15);
+  --os-accent-fg: oklch(0.98 0.005 340);
+}
+
+/* Default accent (blue) when no class is set */
+:root:not(.accent-purple):not(.accent-green):not(.accent-orange):not(.accent-pink) {
+  --os-accent: oklch(0.60 0.200 220);
+  --os-accent-hover: oklch(0.55 0.220 220);
+  --os-accent-active: oklch(0.50 0.230 220);
+  --os-accent-subtle: oklch(0.60 0.200 220 / 0.15);
+  --os-accent-fg: oklch(0.98 0.005 220);
+}
+
+/* ============================================
+   SMOOTH TRANSITIONS
+   ============================================ */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow, opacity !important;
+  transition-duration: var(--theme-transition-duration) !important;
+  transition-timing-function: var(--theme-transition-timing) !important;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--os-scrollbar-track);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--os-scrollbar-thumb);
+  border-radius: 5px;
+  border: 2px solid var(--os-scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--os-scrollbar-thumb-hover);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--os-scrollbar-thumb) var(--os-scrollbar-track);
+}
+
+/* ============================================
+   FOCUS STATES
+   ============================================ */
+*:focus-visible {
+  outline: 2px solid var(--os-border-focus);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   SELECTION
+   ============================================ */
+::selection {
+  background: var(--os-accent-subtle);
+  color: var(--os-fg-primary);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.os-blur {
+  backdrop-filter: var(--os-blur-md);
+  -webkit-backdrop-filter: var(--os-blur-md);
+}
+
+.os-blur-lg {
+  backdrop-filter: var(--os-blur-lg);
+  -webkit-backdrop-filter: var(--os-blur-lg);
+}
+
+.os-glass {
+  background: var(--os-bg-overlay);
+  backdrop-filter: var(--os-blur-lg);
+  -webkit-backdrop-filter: var(--os-blur-lg);
+  border: 1px solid var(--os-border-subtle);
+}
+
+.os-surface {
+  background: var(--os-bg-surface);
+  border: 1px solid var(--os-border-subtle);
+  border-radius: var(--radius);
+}
+
+.os-elevated {
+  background: var(--os-bg-elevated);
+  box-shadow: var(--os-shadow-md);
+  border: 1px solid var(--os-border-subtle);
+  border-radius: var(--radius);
+}

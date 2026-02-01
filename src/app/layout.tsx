@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "@/styles/themes.css";
+import { ThemeProvider } from "@/components/os/theme-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Agent Dashboard",
-  description: "Real-time AI agent monitoring and control",
+  title: "OpenClaw OS",
+  description: "The Operating System for AI Agents",
 };
 
 export default function RootLayout({
@@ -23,11 +25,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark accent-blue" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950 text-zinc-100`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[var(--os-bg-base)] text-[var(--os-fg-primary)]`}
       >
-        {children}
+        <ThemeProvider defaultMode="dark" defaultAccent="blue">
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
