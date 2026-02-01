@@ -5,15 +5,36 @@ import { motion } from 'framer-motion';
 import { Clock } from 'lucide-react';
 
 export function ClockWidget() {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setTime(new Date());
     const interval = setInterval(() => {
       setTime(new Date());
     }, 1000);
 
     return () => clearInterval(interval);
   }, []);
+
+  // Avoid hydration mismatch - show placeholder until mounted
+  if (!mounted || !time) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center">
+        <div className="flex items-baseline gap-1 font-mono">
+          <span className="text-3xl font-bold text-white">--</span>
+          <span className="text-3xl font-bold text-zinc-400">:</span>
+          <span className="text-3xl font-bold text-white">--</span>
+          <span className="text-lg text-zinc-500 ml-1">--</span>
+        </div>
+        <div className="flex items-center gap-2 mt-2 text-xs text-zinc-400">
+          <Clock className="h-3 w-3" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
   const hours = time.getHours().toString().padStart(2, '0');
   const minutes = time.getMinutes().toString().padStart(2, '0');
