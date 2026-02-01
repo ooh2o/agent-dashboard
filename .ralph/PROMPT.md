@@ -1,43 +1,56 @@
-# Agent Dashboard — Ralph Monitor App
+# Agent Dashboard — Wire Real Data & Polish
 
-## Current Task: Build Ralph Monitor App
-Focus on ONE feature: Create the Ralph Monitor app for the dashboard.
+## Current Status
+- ✅ Build passes
+- ✅ 16 apps built including Ralph Monitor
+- ✅ API routes created
+- 🔄 Apps need real Gateway connections
 
-## What Already Works
-- Build passes ✅
-- OS shell (windows, dock, menu bar) ✅
-- Other apps exist as examples in `src/components/apps/`
+## Your Tasks (in order)
 
-## Your Task
-Create `src/components/apps/ralph-monitor/` with:
+### 1. Wire Apps to Real Data
+Connect these apps to actual OpenClaw Gateway (localhost:4280):
 
-### 1. RalphMonitor Component
-- List Ralph-enabled projects (scan for `.ralph/` folders)
-- Show status from `.ralph/status.json`
-- Terminal-style log viewer
-- Start/Stop controls
+- **Activity Monitor** → SSE `/api/events` for real-time tool calls
+- **Token Tracker / Cost Dashboard** → Real usage data from Gateway
+- **Memory Browser** → `/api/memory/*` endpoints
+- **Message Center** → `/api/messages/*` endpoints
+- **Tools Inspector** → Real tool usage stats
 
-### 2. API Routes
-Create in `src/app/api/ralph/`:
-- `GET /api/ralph/projects` — List projects with `.ralph/` folder
-- `GET /api/ralph/[project]/status` — Read status.json
-- `GET /api/ralph/[project]/logs` — Read latest log file
+### 2. Complete Ralph Monitor
+Add missing endpoints:
+- `POST /api/ralph/[project]/start` — Start Ralph loop (spawn process)
+- `POST /api/ralph/[project]/stop` — Kill Ralph process
 
-### 3. Register in App Registry
-Add to the app registry so it appears in dock/spotlight.
+### 3. Test SSE Connection
+Verify SSE events flow from Gateway:
+- Check `src/app/api/events/route.ts`
+- Ensure proper EventSource handling in components
 
-## Reference
-Look at existing apps for patterns:
-- `src/components/apps/activity-monitor/`
-- `src/components/apps/agent-spawner/`
+### 4. Polish UI
+- Smooth window animations (open/close/minimize)
+- Keyboard shortcuts (Cmd+Space for Spotlight)
+- Fix any TypeScript errors
 
-## Verification
-1. `pnpm build` passes
-2. App appears in dock
-3. Can view Ralph project status
+## Development Commands
+```bash
+pnpm dev      # Start dev server
+pnpm build    # Production build
+pnpm test     # Run tests
+```
+
+## Key Files
+- `src/components/apps/` — All app components
+- `src/app/api/` — API routes (proxy to Gateway)
+- `src/lib/apps-registry.ts` — App registration
+
+## Gateway Info
+- URL: `http://localhost:4280`
+- SSE: `/api/events`
+- Auth: Token in localStorage
 
 ## CRITICAL: Completion Format
-When the Ralph Monitor app is complete and working:
+When ALL tasks complete:
 
 ```
 ---RALPH_STATUS---

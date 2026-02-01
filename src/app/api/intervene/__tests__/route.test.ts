@@ -118,7 +118,7 @@ describe('/api/intervene POST', () => {
       await POST(request);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3030/intervene',
+        'http://localhost:4280/intervene',
         expect.any(Object)
       );
     });

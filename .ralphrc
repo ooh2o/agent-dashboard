@@ -4,7 +4,7 @@ PROJECT_TYPE="typescript"
 
 # Loop settings
 MAX_CALLS_PER_HOUR=100
-CLAUDE_TIMEOUT_MINUTES=60
+CLAUDE_TIMEOUT_MINUTES=120
 CLAUDE_OUTPUT_FORMAT="json"
 
 # Full autonomous permissions

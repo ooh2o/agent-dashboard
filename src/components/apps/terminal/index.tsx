@@ -38,7 +38,7 @@ Type any other text to send directly to Chief.`,
   },
   status: {
     description: 'Show connection status',
-    handler: () => 'Connected to OpenClaw Gateway at localhost:3030',
+    handler: () => 'Connected to OpenClaw Gateway at localhost:4280',
   },
 };
 
@@ -265,7 +265,7 @@ export function TerminalConsole() {
             )}
           </div>
           <span className="text-zinc-600">|</span>
-          <span className="text-zinc-500">gateway: localhost:3030</span>
+          <span className="text-zinc-500">gateway: localhost:4280</span>
         </div>
         <div className="flex items-center gap-2">
           {isDebugMode && (

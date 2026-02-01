@@ -6,7 +6,7 @@ import {
 } from '@/lib/rate-limiter';
 import { sanitizeMessageContent } from '@/lib/sanitize';
 
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4280';
 
 /**
  * Valid channel types

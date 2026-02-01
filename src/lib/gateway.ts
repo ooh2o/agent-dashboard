@@ -10,7 +10,7 @@
  * - Cost tracking
  */
 
-const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:4280';
 
 // Types for Gateway API responses
 export interface GatewaySession {

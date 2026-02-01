@@ -192,7 +192,7 @@ describe('Spotlight Component', () => {
 
     expect(screen.getByText('Navigate')).toBeInTheDocument();
     expect(screen.getByText('Open')).toBeInTheDocument();
-    expect(screen.getByText('K to toggle')).toBeInTheDocument();
+    expect(screen.getByText('K or Space to toggle')).toBeInTheDocument();
   });
 
   it('shows empty state when no results match', async () => {

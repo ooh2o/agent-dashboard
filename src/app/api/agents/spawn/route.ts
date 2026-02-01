@@ -7,7 +7,7 @@ import {
   type AgentInstance,
 } from '@/lib/agents';
 
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4280';
 
 /**
  * POST /api/agents/spawn

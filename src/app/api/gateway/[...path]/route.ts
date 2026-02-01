@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4280';
 
 /**
  * Gateway Proxy Route
@@ -9,8 +9,8 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
  * Handles GET, POST, PUT, PATCH, DELETE methods.
  *
  * Example:
- *   /api/gateway/sessions -> http://localhost:3030/sessions
- *   /api/gateway/agents/123 -> http://localhost:3030/agents/123
+ *   /api/gateway/sessions -> http://localhost:4280/sessions
+ *   /api/gateway/agents/123 -> http://localhost:4280/agents/123
  */
 
 type RouteContext = {

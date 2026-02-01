@@ -75,6 +75,7 @@ export function RalphMonitor() {
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch projects
   const fetchProjects = useCallback(async () => {
@@ -150,6 +151,58 @@ export function RalphMonitor() {
     return () => clearInterval(interval);
   }, [autoRefresh, selectedProject, status?.status, fetchStatus, fetchLogs]);
 
+  // Start Ralph loop
+  const handleStart = async () => {
+    if (!selectedProject) return;
+
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/ralph/${selectedProject.id}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maxIterations: 5 }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to start');
+      }
+
+      // Refresh status immediately
+      await fetchStatus();
+      await fetchLogs();
+    } catch (error) {
+      console.error('Failed to start Ralph:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Stop Ralph loop
+  const handleStop = async () => {
+    if (!selectedProject) return;
+
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/ralph/${selectedProject.id}/stop`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to stop');
+      }
+
+      // Refresh status immediately
+      await fetchStatus();
+      await fetchLogs();
+    } catch (error) {
+      console.error('Failed to stop Ralph:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const formatTime = (isoString?: string) => {
     if (!isoString) return 'N/A';
     const date = new Date(isoString);
@@ -158,6 +211,7 @@ export function RalphMonitor() {
 
   const currentConfig = status ? statusConfig[status.status] || statusConfig.idle : statusConfig.idle;
   const StatusIcon = currentConfig.icon;
+  const isRunning = status?.status === 'running';
 
   return (
     <div className="flex h-full gap-4 p-4">
@@ -245,7 +299,40 @@ export function RalphMonitor() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1 ml-4">
+                    <div className="flex items-center gap-2 ml-4">
+                      {/* Start/Stop Controls */}
+                      {isRunning ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleStop}
+                          disabled={actionLoading}
+                          className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Square className="h-4 w-4 mr-1" />
+                          )}
+                          Stop
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleStart}
+                          disabled={actionLoading}
+                          className="border-green-500/30 text-green-400 hover:bg-green-500/10"
+                        >
+                          {actionLoading ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Play className="h-4 w-4 mr-1" />
+                          )}
+                          Start
+                        </Button>
+                      )}
+
                       <Button
                         variant="ghost"
                         size="sm"

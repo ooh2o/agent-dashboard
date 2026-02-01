@@ -13,10 +13,11 @@ export function OSShell() {
   const openSpotlight = useCallback(() => setSpotlightOpen(true), []);
   const closeSpotlight = useCallback(() => setSpotlightOpen(false), []);
 
-  // Global keyboard shortcut for Spotlight
+  // Global keyboard shortcut for Spotlight (Cmd+K or Cmd+Space)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      // Cmd+K or Cmd+Space to toggle Spotlight
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === ' ')) {
         e.preventDefault();
         setSpotlightOpen(prev => !prev);
       }

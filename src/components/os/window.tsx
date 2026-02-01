@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
-import { motion, useDragControls, PanInfo } from 'framer-motion';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { motion, useDragControls, PanInfo, AnimatePresence } from 'framer-motion';
 import { Minus, Square, X, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/lib/stores/window-store';
@@ -28,7 +28,18 @@ export function Window({ window: win, children }: WindowProps) {
   const dragControls = useDragControls();
   const windowRef = useRef<HTMLDivElement>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const resizeStartRef = useRef({ x: 0, y: 0, width: 0, height: 0, winX: 0, winY: 0 });
+
+  // Track minimize state changes for animation
+  useEffect(() => {
+    if (win.isMinimized) {
+      setIsAnimatingOut(true);
+      // Hide after animation completes
+      const timer = setTimeout(() => setIsAnimatingOut(false), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [win.isMinimized]);
 
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,7 +140,17 @@ export function Window({ window: win, children }: WindowProps) {
     document.addEventListener('mouseup', handleMouseUp);
   }, [win, updateWindowPosition, updateWindowSize]);
 
-  if (win.isMinimized) {
+  // Calculate dock position for minimize animation (center-bottom of screen)
+  const getDockPosition = () => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 };
+    return {
+      x: window.innerWidth / 2 - win.width / 2,
+      y: window.innerHeight - 80,
+    };
+  };
+
+  // Hide window after minimize animation completes
+  if (win.isMinimized && !isAnimatingOut) {
     return null;
   }
 
@@ -148,14 +169,23 @@ export function Window({ window: win, children }: WindowProps) {
         height: win.height,
       }}
       initial={{ opacity: 0, scale: 0.95 }}
-      animate={{
+      animate={win.isMinimized ? {
+        opacity: 0,
+        scale: 0.3,
+        x: getDockPosition().x,
+        y: getDockPosition().y,
+      } : {
         opacity: 1,
         scale: 1,
         x: win.x,
         y: win.y,
       }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      transition={{
+        type: 'spring',
+        stiffness: win.isMinimized ? 300 : 400,
+        damping: win.isMinimized ? 25 : 30
+      }}
       onMouseDown={handleFocus}
       drag={!win.isMaximized}
       dragControls={dragControls}

@@ -168,10 +168,10 @@ export function Spotlight({ isOpen, onClose }: SpotlightProps) {
     }
   }, [results, selectedIndex, onClose]);
 
-  // Global keyboard shortcut
+  // Global keyboard shortcut (Cmd+K or Cmd+Space)
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === ' ')) {
         e.preventDefault();
         if (isOpen) {
           onClose();
@@ -289,7 +289,7 @@ export function Spotlight({ isOpen, onClose }: SpotlightProps) {
               </div>
               <div className="flex items-center gap-1">
                 <Command className="w-3 h-3" />
-                <span>K to toggle</span>
+                <span>K or Space to toggle</span>
               </div>
             </div>
           </motion.div>

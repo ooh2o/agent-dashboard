@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4280';
 
 /**
  * Channel configuration

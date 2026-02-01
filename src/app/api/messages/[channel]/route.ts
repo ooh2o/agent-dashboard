@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sanitizeObject } from '@/lib/sanitize';
 
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:3030';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:4280';
 
 /**
  * Valid channel types

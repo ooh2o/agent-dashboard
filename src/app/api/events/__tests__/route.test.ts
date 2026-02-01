@@ -118,7 +118,7 @@ describe('/api/events SSE Route', () => {
       await GET(request);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3030/events',
+        'http://localhost:4280/events',
         expect.any(Object)
       );
     });

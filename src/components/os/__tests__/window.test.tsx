@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Window } from '../window';
 import { createMockWindow } from '@/__tests__/utils/mock-window-store';
 
@@ -55,11 +55,14 @@ describe('Window Component', () => {
     expect(screen.getByText('App content goes here')).toBeInTheDocument();
   });
 
-  it('does not render when minimized', () => {
+  it('does not render when minimized (after animation)', async () => {
     const mockWindow = createMockWindow({ isMinimized: true, title: 'Minimized Window' });
     render(<Window window={mockWindow} />);
 
-    expect(screen.queryByText('Minimized Window')).not.toBeInTheDocument();
+    // Window animates out, then hides after 300ms
+    await waitFor(() => {
+      expect(screen.queryByText('Minimized Window')).not.toBeInTheDocument();
+    }, { timeout: 400 });
   });
 
   it('calls closeWindow when close button is clicked', () => {
