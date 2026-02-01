@@ -57,3 +57,100 @@ export interface MemoryAccess {
   timestamp: Date;
   preview?: string;
 }
+
+// Agent Spawner Types
+export type AgentTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  defaultTask?: string;
+};
+
+export type AgentStatus = 'starting' | 'running' | 'paused' | 'completed' | 'failed';
+
+export interface RunningAgent {
+  id: string;
+  name: string;
+  task: string;
+  template: AgentTemplate;
+  status: AgentStatus;
+  startedAt: Date;
+  progress?: number;
+  tokensUsed?: number;
+}
+
+// Task Queue Types
+export type TaskPriority = 'critical' | 'high' | 'normal' | 'low';
+
+export type QueuedTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface QueuedTask {
+  id: string;
+  title: string;
+  description?: string;
+  priority: TaskPriority;
+  status: QueuedTaskStatus;
+  progress?: number;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  retryCount?: number;
+  maxRetries?: number;
+  assignedAgent?: string;
+}
+
+// Tools Inspector types
+export type ToolCategory = 'file' | 'web' | 'system' | 'ai' | 'memory' | 'communication';
+
+export interface Tool {
+  id: string;
+  name: string;
+  description: string;
+  category: ToolCategory;
+  enabled: boolean;
+  usageCount: number;
+  lastUsed?: Date;
+  successRate: number;
+  avgDurationMs: number;
+  icon: string;
+  params?: {
+    name: string;
+    type: string;
+    required: boolean;
+    description: string;
+  }[];
+}
+
+export interface ToolTestResult {
+  success: boolean;
+  output?: string;
+  error?: string;
+  durationMs: number;
+  timestamp: Date;
+}
+
+// Notification Center types
+export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'task' | 'message';
+export type NotificationPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+  source: string;
+  actionLabel?: string;
+  actionUrl?: string;
+  groupId?: string;
+}
+
+export interface NotificationGroup {
+  id: string;
+  source: string;
+  notifications: Notification[];
+  unreadCount: number;
+}
