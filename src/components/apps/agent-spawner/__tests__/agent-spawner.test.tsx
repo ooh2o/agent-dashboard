@@ -168,7 +168,8 @@ describe('AgentSpawner Component', () => {
     const templateSelector = screen.getByText('General Agent').closest('button');
     await user.click(templateSelector!);
 
-    expect(screen.getByText('Code Review Agent')).toBeInTheDocument();
+    // "Code Review Agent" appears in both dropdown and running agents section
+    expect(screen.getAllByText('Code Review Agent').length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText('Reviews code for bugs and best practices')).toBeInTheDocument();
   });
 

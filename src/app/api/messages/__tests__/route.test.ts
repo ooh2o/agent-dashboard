@@ -1,6 +1,18 @@
 /**
  * Tests for message API routes
+ *
+ * @jest-environment node
  */
+
+// Polyfill Request/Response/Headers for Node environment
+import { Request as NodeRequest, Response as NodeResponse, Headers as NodeHeaders } from 'undici';
+
+// @ts-expect-error - polyfilling globals
+global.Request = NodeRequest;
+// @ts-expect-error - polyfilling globals
+global.Response = NodeResponse;
+// @ts-expect-error - polyfilling globals
+global.Headers = NodeHeaders;
 
 import { NextRequest } from 'next/server';
 

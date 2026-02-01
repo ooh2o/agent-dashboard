@@ -14,7 +14,8 @@ export type EventType =
 
 export interface ActivityEvent {
   id: string;
-  timestamp: Date;
+  sessionId?: string;
+  timestamp: Date | string;
   type: EventType;
   tool?: string;
   params?: Record<string, unknown>;

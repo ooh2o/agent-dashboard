@@ -131,19 +131,18 @@ describe('MenuBar Component', () => {
 
     render(<MenuBar onSpotlightOpen={mockOnSpotlightOpen} />);
 
-    // Initial time
+    // Initial time should be set immediately via useEffect
     act(() => {
       jest.runOnlyPendingTimers();
     });
 
     expect(screen.getByText(/2:30/)).toBeInTheDocument();
 
-    // Advance time by 1 minute
-    const newDate = new Date('2024-01-15T14:31:00');
-    jest.setSystemTime(newDate);
+    // Advance time by 1 minute and update the system time
+    jest.setSystemTime(new Date('2024-01-15T14:31:00'));
 
     act(() => {
-      jest.advanceTimersByTime(60000);
+      jest.advanceTimersByTime(1000); // Just advance by 1 second to trigger interval
     });
 
     expect(screen.getByText(/2:31/)).toBeInTheDocument();

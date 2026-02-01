@@ -9,8 +9,8 @@ import type {
 } from './workflows'
 
 // In-memory storage (replace with database in production)
-let workflows: Map<string, Workflow> = new Map()
-let workflowRuns: Map<string, WorkflowRun[]> = new Map()
+const workflows: Map<string, Workflow> = new Map()
+const workflowRuns: Map<string, WorkflowRun[]> = new Map()
 let auditLogs: AuditLogEntry[] = []
 
 // Rate limiting

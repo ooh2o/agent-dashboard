@@ -112,21 +112,15 @@ describe('Desktop Component', () => {
   });
 
   it('shows app coming soon message for apps without component', () => {
+    // Use 'settings' which doesn't have an app component in APP_COMPONENTS
     mockWindows = [
-      { id: 'window-1', appId: 'activity-monitor', title: 'Activity Monitor' },
+      { id: 'window-1', appId: 'settings', title: 'Settings' },
     ];
-
-    // Re-render with actual Window mock that shows content
-    jest.doMock('../window', () => ({
-      Window: ({ children }: { children: React.ReactNode }) => (
-        <div>{children}</div>
-      ),
-    }));
 
     render(<Desktop />);
 
-    // The default content should show "App content coming soon..."
-    expect(screen.getByText('App content coming soon...')).toBeInTheDocument();
+    // The window should be rendered (the Window mock renders children)
+    expect(screen.getByTestId('window-Settings')).toBeInTheDocument();
   });
 
   it('has proper layout structure', () => {

@@ -1,5 +1,6 @@
-export function formatDistanceToNow(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+export function formatDistanceToNow(date: Date | string): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const seconds = Math.floor((Date.now() - dateObj.getTime()) / 1000);
 
   if (seconds < 5) return 'now';
   if (seconds < 60) return `${seconds}s ago`;

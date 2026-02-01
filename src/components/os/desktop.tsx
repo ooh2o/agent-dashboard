@@ -16,6 +16,7 @@ const MessageCenter = lazy(() => import('@/components/apps/message-center').then
 const TerminalConsole = lazy(() => import('@/components/apps/terminal').then(m => ({ default: m.TerminalConsole })));
 const Workflows = lazy(() => import('@/components/apps/workflows').then(m => ({ default: m.Workflows })));
 const AnalyticsDashboard = lazy(() => import('@/components/apps/analytics').then(m => ({ default: m.AnalyticsDashboard })));
+const RalphMonitor = lazy(() => import('@/components/apps/ralph-monitor').then(m => ({ default: m.RalphMonitor })));
 
 // Wrapper for ActivityMonitor to inject activities from store
 function ActivityMonitor({ onClose, onMinimize, onMaximize }: {
@@ -48,6 +49,7 @@ const APP_COMPONENTS: Record<string, React.ComponentType<{
   'terminal': TerminalConsole,
   'workflows': Workflows,
   'analytics': AnalyticsDashboard,
+  'ralph-monitor': RalphMonitor,
 };
 
 function AppContent({ win }: { win: WindowState }) {

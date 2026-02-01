@@ -1,0 +1,15 @@
+# .ralphrc — Agent Dashboard
+PROJECT_NAME="agent-dashboard"
+PROJECT_TYPE="typescript"
+
+# Loop settings
+MAX_CALLS_PER_HOUR=100
+CLAUDE_TIMEOUT_MINUTES=60
+CLAUDE_OUTPUT_FORMAT="json"
+
+# Full autonomous permissions
+ALLOWED_TOOLS="Write,Read,Edit,Bash(*)"
+
+# Session management
+SESSION_CONTINUITY=true
+SESSION_EXPIRY_HOURS=24

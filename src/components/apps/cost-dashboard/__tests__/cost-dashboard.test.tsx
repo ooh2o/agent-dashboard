@@ -126,9 +126,10 @@ describe('CostDashboard Component', () => {
 
   it('displays model names', () => {
     render(<CostDashboard {...defaultProps} />);
-    expect(screen.getByText(/opus/i)).toBeInTheDocument();
-    expect(screen.getByText(/sonnet/i)).toBeInTheDocument();
-    expect(screen.getByText(/haiku/i)).toBeInTheDocument();
+    // Model names may appear multiple times in the UI (in cards, charts, etc.)
+    expect(screen.getAllByText(/opus/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sonnet/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/haiku/i).length).toBeGreaterThan(0);
   });
 
   it('displays session counts for models', () => {

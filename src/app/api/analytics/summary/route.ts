@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     const yesterdayMetrics = analyticsData.dailyMetrics.get(yesterday);
 
     // Calculate week total
-    let weekTotal = { tokens: 0, cost: 0, sessions: 0, toolCalls: 0 };
+    const weekTotal = { tokens: 0, cost: 0, sessions: 0, toolCalls: 0 };
     for (let i = 0; i < 7; i++) {
       const date = getDateDaysAgo(i);
       const metrics = analyticsData.dailyMetrics.get(date);
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate month total
-    let monthTotal = { tokens: 0, cost: 0, sessions: 0, toolCalls: 0 };
+    const monthTotal = { tokens: 0, cost: 0, sessions: 0, toolCalls: 0 };
     for (let i = 0; i < 30; i++) {
       const date = getDateDaysAgo(i);
       const metrics = analyticsData.dailyMetrics.get(date);

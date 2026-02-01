@@ -100,9 +100,11 @@ describe('Dock Component', () => {
 
     render(<Dock />);
 
-    const memoryBrowserButton = screen.getByText('🧠').closest('button');
-    if (memoryBrowserButton) {
-      fireEvent.click(memoryBrowserButton);
+    // Find all buttons with the 🧠 icon - first one is dock app, second is minimized window
+    const memoryBrowserButtons = screen.getAllByText('🧠');
+    const dockButton = memoryBrowserButtons[0].closest('button');
+    if (dockButton) {
+      fireEvent.click(dockButton);
     }
 
     expect(mockRestoreWindow).toHaveBeenCalledWith('window-2');

@@ -5,6 +5,28 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder as typeof global.TextDecoder;
 
+// Polyfill Request/Response for API route tests in node environment
+if (typeof Request === 'undefined') {
+  global.Request = jest.fn().mockImplementation((url: string, init?: RequestInit) => ({
+    url,
+    method: init?.method || 'GET',
+    headers: new Map(Object.entries(init?.headers || {})),
+    json: async () => init?.body ? JSON.parse(init.body as string) : {},
+    text: async () => init?.body as string || '',
+  })) as unknown as typeof Request;
+}
+
+if (typeof Response === 'undefined') {
+  global.Response = jest.fn().mockImplementation((body: BodyInit | null, init?: ResponseInit) => ({
+    ok: (init?.status || 200) >= 200 && (init?.status || 200) < 300,
+    status: init?.status || 200,
+    statusText: init?.statusText || 'OK',
+    headers: new Map(Object.entries(init?.headers || {})),
+    json: async () => typeof body === 'string' ? JSON.parse(body) : body,
+    text: async () => typeof body === 'string' ? body : JSON.stringify(body),
+  })) as unknown as typeof Response;
+}
+
 // Only setup browser mocks in jsdom environment
 if (typeof window !== 'undefined') {
   // Mock window.matchMedia

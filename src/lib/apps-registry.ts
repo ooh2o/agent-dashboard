@@ -81,6 +81,12 @@ export const APPS: AppDefinition[] = [
     icon: '📈',
     shortcut: '⌘A',
   },
+  {
+    id: 'ralph-monitor',
+    name: 'Ralph Monitor',
+    icon: '🔁',
+    shortcut: '⌘R',
+  },
 ];
 
 export const getApp = (id: string): AppDefinition | undefined => {
@@ -92,6 +98,7 @@ export const DOCK_APPS = [
   'memory-browser',
   'message-center',
   'agent-spawner',
+  'ralph-monitor',
   'terminal',
   'settings',
 ];
