@@ -180,7 +180,15 @@ export function ThemeProvider({
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error("useTheme must be used within a ThemeProvider");
+    // Return default values for SSR or when used outside provider
+    return {
+      mode: 'dark' as ThemeMode,
+      accent: 'blue' as AccentColor,
+      resolvedTheme: 'dark' as const,
+      setMode: () => {},
+      setAccent: () => {},
+      toggleMode: () => {},
+    };
   }
   return context;
 }
