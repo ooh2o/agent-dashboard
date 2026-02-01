@@ -68,10 +68,25 @@ export function useMessages(params?: {
   channel?: string;
   limit?: number;
   threadId?: string;
+  before?: string;
+  search?: string;
 }) {
   return useQuery({
     queryKey: [...queryKeys.messages(params?.channel), params],
     queryFn: () => gateway.messages.list(params),
+    refetchInterval: 10000, // Poll every 10 seconds for near real-time
+  });
+}
+
+export function useMessagesByChannel(
+  channel: string,
+  params?: { threadId?: string; limit?: number; before?: string }
+) {
+  return useQuery({
+    queryKey: [...queryKeys.messages(channel), 'byChannel', params],
+    queryFn: () => gateway.messages.listByChannel(channel, params),
+    enabled: !!channel,
+    refetchInterval: 10000,
   });
 }
 
@@ -97,7 +112,21 @@ export function useSendMessage() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.messages(variables.channel),
       });
+      // Also invalidate threads
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.threads(variables.channel),
+      });
     },
+  });
+}
+
+// ============ Channels ============
+
+export function useChannels() {
+  return useQuery({
+    queryKey: ['channels'] as const,
+    queryFn: () => gateway.channels.list(),
+    refetchInterval: 30000, // Check channel status every 30 seconds
   });
 }
 
@@ -267,5 +296,118 @@ export function useWake() {
   return useMutation({
     mutationFn: ({ message, mode }: { message: string; mode?: 'now' | 'queue' }) =>
       gateway.wake(message, mode),
+  });
+}
+
+// ============ Agent Templates ============
+
+export const templateQueryKeys = {
+  templates: ['templates'] as const,
+  template: (id: string) => ['templates', id] as const,
+  runningAgents: ['runningAgents'] as const,
+  agentOutput: (id: string) => ['agentOutput', id] as const,
+};
+
+export function useAgentTemplates() {
+  return useQuery({
+    queryKey: templateQueryKeys.templates,
+    queryFn: () => gateway.templates.list(),
+  });
+}
+
+export function useAgentTemplate(id: string) {
+  return useQuery({
+    queryKey: templateQueryKeys.template(id),
+    queryFn: () => gateway.templates.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: gateway.templates.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.templates });
+    },
+  });
+}
+
+export function useUpdateTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof gateway.templates.update>[1] }) =>
+      gateway.templates.update(id, updates),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.templates });
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.template(variables.id) });
+    },
+  });
+}
+
+export function useDeleteTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: gateway.templates.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.templates });
+    },
+  });
+}
+
+// ============ Running Agents (Template-based) ============
+
+export function useRunningAgents() {
+  return useQuery({
+    queryKey: templateQueryKeys.runningAgents,
+    queryFn: () => gateway.agents.listRunning(),
+    refetchInterval: 3000, // Poll for status updates
+  });
+}
+
+export function useSpawnFromTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: gateway.agents.spawnFromTemplate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.runningAgents });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents });
+    },
+  });
+}
+
+export function useKillAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: gateway.agents.kill,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.runningAgents });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents });
+    },
+  });
+}
+
+export function useAgentOutput(id: string) {
+  return useQuery({
+    queryKey: templateQueryKeys.agentOutput(id),
+    queryFn: () => gateway.agents.getOutput(id),
+    enabled: !!id,
+    refetchInterval: 2000, // Poll for output updates
+  });
+}
+
+export function useRemoveAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: gateway.agents.remove,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: templateQueryKeys.runningAgents });
+    },
   });
 }

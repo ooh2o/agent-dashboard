@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,25 +14,28 @@ import {
   Search,
   FileText,
   Wrench,
-  Play,
-  Pause,
   Square,
-  Trash2,
   ChevronDown,
   Zap,
   Clock,
   Cpu,
+  BarChart3,
+  Eye,
+  X,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AgentTemplate, RunningAgent, AgentStatus } from '@/lib/types';
-
-const AGENT_TEMPLATES: AgentTemplate[] = [
-  { id: 'general', name: 'General Agent', description: 'Multi-purpose autonomous agent', icon: 'bot' },
-  { id: 'coder', name: 'Code Agent', description: 'Specialized for coding tasks', icon: 'code' },
-  { id: 'researcher', name: 'Research Agent', description: 'Web search and analysis', icon: 'search' },
-  { id: 'writer', name: 'Writer Agent', description: 'Content and documentation', icon: 'file' },
-  { id: 'devops', name: 'DevOps Agent', description: 'Infrastructure and deployment', icon: 'wrench' },
-];
+import {
+  useAgentTemplates,
+  useRunningAgents,
+  useSpawnFromTemplate,
+  useKillAgent,
+  useAgentOutput,
+  useRemoveAgent,
+} from '@/hooks/use-gateway';
+import type { GatewayAgentTemplate, GatewayAgentInstance } from '@/lib/gateway';
 
 const templateIcons: Record<string, React.ElementType> = {
   bot: Bot,
@@ -41,91 +43,166 @@ const templateIcons: Record<string, React.ElementType> = {
   search: Search,
   file: FileText,
   wrench: Wrench,
+  chart: BarChart3,
 };
 
-const statusConfig: Record<AgentStatus, { color: string; bgColor: string; label: string }> = {
+const statusConfig: Record<string, { color: string; bgColor: string; label: string }> = {
+  queued: { color: 'text-zinc-400', bgColor: 'bg-zinc-400/10', label: 'Queued' },
   starting: { color: 'text-yellow-400', bgColor: 'bg-yellow-400/10', label: 'Starting' },
   running: { color: 'text-green-400', bgColor: 'bg-green-400/10', label: 'Running' },
   paused: { color: 'text-orange-400', bgColor: 'bg-orange-400/10', label: 'Paused' },
   completed: { color: 'text-blue-400', bgColor: 'bg-blue-400/10', label: 'Completed' },
   failed: { color: 'text-red-400', bgColor: 'bg-red-400/10', label: 'Failed' },
+  killed: { color: 'text-red-400', bgColor: 'bg-red-400/10', label: 'Killed' },
 };
 
-// Demo data
-const initialAgents: RunningAgent[] = [
-  {
-    id: 'agent-1',
-    name: 'Code Review Agent',
-    task: 'Review PR #142 for security issues',
-    template: AGENT_TEMPLATES[1],
-    status: 'running',
-    startedAt: new Date(Date.now() - 120000),
-    progress: 65,
-    tokensUsed: 12450,
-  },
-  {
-    id: 'agent-2',
-    name: 'Research Agent',
-    task: 'Find best practices for React 19',
-    template: AGENT_TEMPLATES[2],
-    status: 'running',
-    startedAt: new Date(Date.now() - 300000),
-    progress: 88,
-    tokensUsed: 8920,
-  },
-];
+interface OutputViewerProps {
+  agentId: string;
+  onClose: () => void;
+}
+
+function OutputViewer({ agentId, onClose }: OutputViewerProps) {
+  const { data, isLoading, error } = useAgentOutput(agentId);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl max-h-[80vh] rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+          <h3 className="text-lg font-medium text-zinc-200">Agent Output</h3>
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <ScrollArea className="h-[60vh]">
+          <div className="p-4">
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+              </div>
+            )}
+            {error && (
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="h-4 w-4" />
+                <span>Failed to load output</span>
+              </div>
+            )}
+            {data && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 text-sm text-zinc-400">
+                  <span>Status: {statusConfig[data.status]?.label || data.status}</span>
+                  {data.tokensUsed && (
+                    <span>
+                      Tokens: {data.tokensUsed.input + data.tokensUsed.output}
+                    </span>
+                  )}
+                </div>
+                <pre className="p-4 rounded-lg bg-zinc-800/50 text-sm text-zinc-300 whitespace-pre-wrap font-mono overflow-x-auto">
+                  {data.output || 'No output yet...'}
+                </pre>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    </motion.div>
+  );
+}
 
 export function AgentSpawner() {
   const [taskInput, setTaskInput] = useState('');
-  const [selectedTemplate, setSelectedTemplate] = useState<AgentTemplate>(AGENT_TEMPLATES[0]);
+  const [selectedTemplate, setSelectedTemplate] = useState<GatewayAgentTemplate | null>(null);
   const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
-  const [runningAgents, setRunningAgents] = useState<RunningAgent[]>(initialAgents);
-  const [isLaunching, setIsLaunching] = useState(false);
+  const [viewingAgentId, setViewingAgentId] = useState<string | null>(null);
+  const [elapsedTimes, setElapsedTimes] = useState<Record<string, number>>({});
 
-  const handleLaunch = async () => {
-    if (!taskInput.trim()) return;
+  // API hooks
+  const { data: templatesData, isLoading: templatesLoading, error: templatesError } = useAgentTemplates();
+  const { data: agentsData, isLoading: agentsLoading, refetch: refetchAgents } = useRunningAgents();
+  const spawnMutation = useSpawnFromTemplate();
+  const killMutation = useKillAgent();
+  const removeMutation = useRemoveAgent();
 
-    setIsLaunching(true);
+  const templates = templatesData?.templates || [];
+  const agents = agentsData?.agents || [];
 
-    // Simulate agent spawn
-    const newAgent: RunningAgent = {
-      id: `agent-${Date.now()}`,
-      name: `${selectedTemplate.name} #${runningAgents.length + 1}`,
-      task: taskInput,
-      template: selectedTemplate,
-      status: 'starting',
-      startedAt: new Date(),
-      progress: 0,
-    };
+  // Set default template when loaded
+  useEffect(() => {
+    if (templates.length > 0 && !selectedTemplate) {
+      setSelectedTemplate(templates.find((t) => t.id === 'general') || templates[0]);
+    }
+  }, [templates, selectedTemplate]);
 
-    setRunningAgents((prev) => [newAgent, ...prev]);
+  // Update elapsed times for running agents
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const newTimes: Record<string, number> = {};
 
-    // Simulate starting delay
-    setTimeout(() => {
-      setRunningAgents((prev) =>
-        prev.map((a) => (a.id === newAgent.id ? { ...a, status: 'running' as AgentStatus } : a))
-      );
-      setIsLaunching(false);
+      for (const agent of agents) {
+        if (['running', 'starting', 'queued'].includes(agent.status)) {
+          const start = new Date(agent.startTime).getTime();
+          newTimes[agent.id] = Math.floor((now - start) / 1000);
+        }
+      }
+
+      setElapsedTimes(newTimes);
     }, 1000);
 
-    setTaskInput('');
+    return () => clearInterval(interval);
+  }, [agents]);
+
+  const handleLaunch = async () => {
+    if (!taskInput.trim() || !selectedTemplate) return;
+
+    try {
+      await spawnMutation.mutateAsync({
+        templateId: selectedTemplate.id,
+        task: taskInput,
+      });
+      setTaskInput('');
+    } catch (error) {
+      console.error('Failed to spawn agent:', error);
+    }
   };
 
-  const handlePause = (agentId: string) => {
-    setRunningAgents((prev) =>
-      prev.map((a) =>
-        a.id === agentId
-          ? { ...a, status: a.status === 'paused' ? 'running' : 'paused' }
-          : a
-      )
-    );
+  const handleKill = async (agentId: string) => {
+    try {
+      await killMutation.mutateAsync(agentId);
+    } catch (error) {
+      console.error('Failed to kill agent:', error);
+    }
   };
 
-  const handleKill = (agentId: string) => {
-    setRunningAgents((prev) => prev.filter((a) => a.id !== agentId));
+  const handleRemove = async (agentId: string) => {
+    try {
+      await removeMutation.mutateAsync(agentId);
+    } catch (error) {
+      console.error('Failed to remove agent:', error);
+    }
   };
 
-  const SelectedIcon = templateIcons[selectedTemplate.icon];
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const activeCount = agents.filter((a) =>
+    ['running', 'starting', 'queued'].includes(a.status)
+  ).length;
+
+  const SelectedIcon = selectedTemplate
+    ? templateIcons[selectedTemplate.icon] || Bot
+    : Bot;
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -139,64 +216,84 @@ export function AgentSpawner() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Template Selector */}
-          <div className="relative">
-            <button
-              onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
-              className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-zinc-600 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
-                  <SelectedIcon className="h-5 w-5 text-violet-400" />
+          {templatesLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+            </div>
+          ) : templatesError ? (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              <span>Failed to load templates</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                className="w-full flex items-center justify-between gap-3 p-3 rounded-lg bg-zinc-800/50 border border-zinc-700 hover:border-zinc-600 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/20">
+                    <SelectedIcon className="h-5 w-5 text-violet-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-zinc-200">
+                      {selectedTemplate?.name || 'Select Template'}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {selectedTemplate?.description || 'Choose an agent template'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium text-zinc-200">{selectedTemplate.name}</p>
-                  <p className="text-xs text-zinc-500">{selectedTemplate.description}</p>
-                </div>
-              </div>
-              <ChevronDown
-                className={cn(
-                  'h-4 w-4 text-zinc-400 transition-transform',
-                  showTemplateDropdown && 'rotate-180'
-                )}
-              />
-            </button>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 text-zinc-400 transition-transform',
+                    showTemplateDropdown && 'rotate-180'
+                  )}
+                />
+              </button>
 
-            <AnimatePresence>
-              {showTemplateDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  className="absolute z-10 top-full left-0 right-0 mt-2 rounded-lg bg-zinc-800 border border-zinc-700 shadow-xl overflow-hidden"
-                >
-                  {AGENT_TEMPLATES.map((template) => {
-                    const Icon = templateIcons[template.icon];
-                    return (
-                      <button
-                        key={template.id}
-                        onClick={() => {
-                          setSelectedTemplate(template);
-                          setShowTemplateDropdown(false);
-                        }}
-                        className={cn(
-                          'w-full flex items-center gap-3 p-3 hover:bg-zinc-700/50 transition-colors',
-                          selectedTemplate.id === template.id && 'bg-zinc-700/50'
-                        )}
-                      >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-violet-500/20">
-                          <Icon className="h-4 w-4 text-violet-400" />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-medium text-zinc-200">{template.name}</p>
-                          <p className="text-xs text-zinc-500">{template.description}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+              <AnimatePresence>
+                {showTemplateDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="absolute z-10 top-full left-0 right-0 mt-2 rounded-lg bg-zinc-800 border border-zinc-700 shadow-xl overflow-hidden max-h-64 overflow-y-auto"
+                  >
+                    {templates.map((template) => {
+                      const Icon = templateIcons[template.icon] || Bot;
+                      return (
+                        <button
+                          key={template.id}
+                          onClick={() => {
+                            setSelectedTemplate(template);
+                            setShowTemplateDropdown(false);
+                          }}
+                          className={cn(
+                            'w-full flex items-center gap-3 p-3 hover:bg-zinc-700/50 transition-colors',
+                            selectedTemplate?.id === template.id && 'bg-zinc-700/50'
+                          )}
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-violet-500/20">
+                            <Icon className="h-4 w-4 text-violet-400" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-zinc-200">{template.name}</p>
+                              {template.isBuiltIn && (
+                                <Badge variant="outline" className="text-xs">Built-in</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-zinc-500">{template.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Task Input */}
           <Textarea
@@ -210,7 +307,7 @@ export function AgentSpawner() {
           <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <Button
               onClick={handleLaunch}
-              disabled={!taskInput.trim() || isLaunching}
+              disabled={!taskInput.trim() || !selectedTemplate || spawnMutation.isPending}
               className={cn(
                 'w-full h-14 text-lg font-semibold transition-all',
                 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500',
@@ -218,7 +315,7 @@ export function AgentSpawner() {
                 'disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none'
               )}
             >
-              {isLaunching ? (
+              {spawnMutation.isPending ? (
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -233,6 +330,13 @@ export function AgentSpawner() {
               )}
             </Button>
           </motion.div>
+
+          {spawnMutation.isError && (
+            <div className="flex items-center gap-2 text-red-400 text-sm">
+              <AlertCircle className="h-4 w-4" />
+              <span>Failed to spawn agent. Check gateway connection.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -243,20 +347,28 @@ export function AgentSpawner() {
             <Bot className="h-5 w-5 text-zinc-400" />
             Running Agents
             <Badge variant="secondary" className="ml-auto bg-zinc-800 text-zinc-300">
-              {runningAgents.filter((a) => a.status === 'running').length} active
+              {activeCount} active
             </Badge>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => refetchAgents()}
+              className="ml-2"
+            >
+              <RefreshCw className={cn('h-4 w-4', agentsLoading && 'animate-spin')} />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="h-[300px]">
             <div className="px-4 pb-4 space-y-3">
               <AnimatePresence initial={false}>
-                {runningAgents.map((agent) => {
-                  const config = statusConfig[agent.status];
-                  const Icon = templateIcons[agent.template.icon];
-                  const elapsed = Math.floor((Date.now() - agent.startedAt.getTime()) / 1000);
-                  const minutes = Math.floor(elapsed / 60);
-                  const seconds = elapsed % 60;
+                {agents.map((agent) => {
+                  const config = statusConfig[agent.status] || statusConfig.running;
+                  const Icon = templateIcons[templates.find((t) => t.id === agent.templateId)?.icon || 'bot'] || Bot;
+                  const elapsed = elapsedTimes[agent.id] || 0;
+                  const isActive = ['running', 'starting', 'queued'].includes(agent.status);
+                  const canRemove = ['completed', 'failed', 'killed'].includes(agent.status);
 
                   return (
                     <motion.div
@@ -279,7 +391,7 @@ export function AgentSpawner() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-medium text-zinc-200 truncate">
-                                {agent.name}
+                                {agent.templateName}
                               </p>
                               <Badge
                                 variant="outline"
@@ -292,10 +404,16 @@ export function AgentSpawner() {
                             <div className="flex items-center gap-3 mt-2 text-xs text-zinc-500">
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {minutes}:{seconds.toString().padStart(2, '0')}
+                                {isActive ? formatTime(elapsed) : formatTime(
+                                  agent.endTime
+                                    ? Math.floor((new Date(agent.endTime).getTime() - new Date(agent.startTime).getTime()) / 1000)
+                                    : 0
+                                )}
                               </span>
                               {agent.tokensUsed && (
-                                <span>{agent.tokensUsed.toLocaleString()} tokens</span>
+                                <span>
+                                  {(agent.tokensUsed.input + agent.tokensUsed.output).toLocaleString()} tokens
+                                </span>
                               )}
                             </div>
                           </div>
@@ -303,42 +421,48 @@ export function AgentSpawner() {
 
                         {/* Controls */}
                         <div className="flex items-center gap-1">
-                          {(agent.status === 'running' || agent.status === 'paused') && (
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handlePause(agent.id)}
-                              className="hover:bg-zinc-700"
-                            >
-                              {agent.status === 'paused' ? (
-                                <Play className="h-4 w-4 text-green-400" />
-                              ) : (
-                                <Pause className="h-4 w-4 text-orange-400" />
-                              )}
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => handleKill(agent.id)}
-                            className="hover:bg-red-500/20 hover:text-red-400"
+                            onClick={() => setViewingAgentId(agent.id)}
+                            className="hover:bg-zinc-700"
+                            title="View Output"
                           >
-                            <Square className="h-4 w-4" />
+                            <Eye className="h-4 w-4 text-zinc-400" />
                           </Button>
+                          {isActive && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleKill(agent.id)}
+                              disabled={killMutation.isPending}
+                              className="hover:bg-red-500/20 hover:text-red-400"
+                              title="Kill Agent"
+                            >
+                              <Square className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canRemove && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleRemove(agent.id)}
+                              disabled={removeMutation.isPending}
+                              className="hover:bg-zinc-700"
+                              title="Remove from list"
+                            >
+                              <X className="h-4 w-4 text-zinc-400" />
+                            </Button>
+                          )}
                         </div>
                       </div>
 
                       {/* Progress Bar */}
-                      {agent.progress !== undefined && agent.status !== 'completed' && (
+                      {agent.progress !== undefined && isActive && (
                         <div className="mt-3">
                           <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
                             <motion.div
-                              className={cn(
-                                'h-full rounded-full',
-                                agent.status === 'paused'
-                                  ? 'bg-orange-500'
-                                  : 'bg-gradient-to-r from-violet-500 to-purple-500'
-                              )}
+                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
                               initial={{ width: 0 }}
                               animate={{ width: `${agent.progress}%` }}
                               transition={{ duration: 0.5 }}
@@ -349,22 +473,46 @@ export function AgentSpawner() {
                           </p>
                         </div>
                       )}
+
+                      {/* Error message */}
+                      {agent.error && (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-red-400">
+                          <AlertCircle className="h-3 w-3" />
+                          <span className="truncate">{agent.error}</span>
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
 
-              {runningAgents.length === 0 && (
+              {agents.length === 0 && !agentsLoading && (
                 <div className="text-center py-8 text-zinc-500">
                   <Bot className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No agents running</p>
                   <p className="text-xs mt-1">Launch an agent to get started</p>
                 </div>
               )}
+
+              {agentsLoading && agents.length === 0 && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                </div>
+              )}
             </div>
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* Output Viewer Modal */}
+      <AnimatePresence>
+        {viewingAgentId && (
+          <OutputViewer
+            agentId={viewingAgentId}
+            onClose={() => setViewingAgentId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

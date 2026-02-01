@@ -90,6 +90,43 @@ export interface SpawnAgentResponse {
   task: string;
 }
 
+// Agent Template types
+export interface GatewayAgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  task: string;
+  model: string;
+  thinking: boolean;
+  timeout: number;
+  icon: string;
+  maxTurns?: number;
+  isBuiltIn: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GatewayAgentInstance {
+  id: string;
+  templateId: string;
+  templateName: string;
+  task: string;
+  status: 'queued' | 'starting' | 'running' | 'paused' | 'completed' | 'failed' | 'killed';
+  startTime: string;
+  endTime?: string;
+  sessionKey?: string;
+  progress?: number;
+  tokensUsed?: { input: number; output: number };
+  error?: string;
+}
+
+export interface TemplateSpawnRequest {
+  templateId: string;
+  task?: string;
+  model?: string;
+  maxTurns?: number;
+}
+
 // API Error type
 export class GatewayError extends Error {
   constructor(
@@ -174,27 +211,70 @@ export const gateway = {
 
   // Messages
   messages: {
-    list: (params?: { channel?: string; limit?: number; threadId?: string }) => {
+    list: (params?: {
+      channel?: string;
+      limit?: number;
+      threadId?: string;
+      before?: string;
+      search?: string;
+    }) => {
       const searchParams = new URLSearchParams();
       if (params?.channel) searchParams.set('channel', params.channel);
       if (params?.limit) searchParams.set('limit', String(params.limit));
       if (params?.threadId) searchParams.set('threadId', params.threadId);
+      if (params?.before) searchParams.set('before', params.before);
+      if (params?.search) searchParams.set('search', params.search);
       const query = searchParams.toString();
       return gatewayFetch<{ messages: GatewayMessage[] }>(
         `/messages${query ? `?${query}` : ''}`
       );
     },
 
+    listByChannel: (
+      channel: string,
+      params?: { threadId?: string; limit?: number; before?: string }
+    ) => {
+      const searchParams = new URLSearchParams();
+      if (params?.threadId) searchParams.set('threadId', params.threadId);
+      if (params?.limit) searchParams.set('limit', String(params.limit));
+      if (params?.before) searchParams.set('before', params.before);
+      const query = searchParams.toString();
+      return gatewayFetch<{ messages: GatewayMessage[] }>(
+        `/messages/${channel}${query ? `?${query}` : ''}`
+      );
+    },
+
     send: (data: { channel: string; content: string; threadId?: string }) =>
-      gatewayFetch<{ id: string; status: 'sent' }>('/messages', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+      gatewayFetch<{ id: string; status: 'sent'; success: boolean }>(
+        '/messages/send',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }
+      ),
 
     getThreads: (channel: string) =>
-      gatewayFetch<{ threads: Array<{ id: string; preview: string; lastActivity: string }> }>(
-        `/messages/threads?channel=${channel}`
-      ),
+      gatewayFetch<{
+        threads: Array<{ id: string; preview: string; lastActivity: string }>;
+      }>(`/messages/threads?channel=${channel}`),
+  },
+
+  // Channels
+  channels: {
+    list: () =>
+      gatewayFetch<{
+        channels: Array<{
+          id: string;
+          name: string;
+          connected: boolean;
+          icon: string;
+          color: string;
+          bgColor: string;
+          lastActivity?: string;
+          unreadCount?: number;
+        }>;
+        warning?: string;
+      }>('/channels'),
   },
 
   // Cron Jobs
@@ -266,6 +346,93 @@ export const gateway = {
     stop: (id: string) =>
       gatewayFetch<{ success: boolean }>(`/agents/${id}/stop`, {
         method: 'POST',
+      }),
+
+    // Template-based spawning (through dashboard API)
+    spawnFromTemplate: (request: TemplateSpawnRequest) =>
+      fetch('/api/agents/spawn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to spawn agent');
+        return res.json() as Promise<{ agent: GatewayAgentInstance }>;
+      }),
+
+    // Running agents from dashboard
+    listRunning: () =>
+      fetch('/api/agents/running').then((res) => {
+        if (!res.ok) throw new Error('Failed to list agents');
+        return res.json() as Promise<{ agents: GatewayAgentInstance[]; synced: boolean }>;
+      }),
+
+    // Kill agent
+    kill: (id: string) =>
+      fetch(`/api/agents/${id}/kill`, { method: 'POST' }).then((res) => {
+        if (!res.ok) throw new Error('Failed to kill agent');
+        return res.json() as Promise<{ success: boolean; agent: { id: string; status: string } }>;
+      }),
+
+    // Get agent output
+    getOutput: (id: string) =>
+      fetch(`/api/agents/${id}/output`).then((res) => {
+        if (!res.ok) throw new Error('Failed to get output');
+        return res.json() as Promise<{
+          id: string;
+          status: string;
+          output: string;
+          startTime: string;
+          endTime?: string;
+          tokensUsed?: { input: number; output: number };
+        }>;
+      }),
+
+    // Remove completed agent from list
+    remove: (id: string) =>
+      fetch(`/api/agents/${id}`, { method: 'DELETE' }).then((res) => {
+        if (!res.ok) throw new Error('Failed to remove agent');
+        return res.json() as Promise<{ success: boolean }>;
+      }),
+  },
+
+  // Agent Templates
+  templates: {
+    list: () =>
+      fetch('/api/agents/templates').then((res) => {
+        if (!res.ok) throw new Error('Failed to list templates');
+        return res.json() as Promise<{ templates: GatewayAgentTemplate[] }>;
+      }),
+
+    get: (id: string) =>
+      fetch(`/api/agents/templates/${id}`).then((res) => {
+        if (!res.ok) throw new Error('Failed to get template');
+        return res.json() as Promise<{ template: GatewayAgentTemplate }>;
+      }),
+
+    create: (template: Omit<GatewayAgentTemplate, 'id' | 'isBuiltIn' | 'createdAt' | 'updatedAt'>) =>
+      fetch('/api/agents/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to create template');
+        return res.json() as Promise<{ template: GatewayAgentTemplate }>;
+      }),
+
+    update: (id: string, updates: Partial<GatewayAgentTemplate>) =>
+      fetch(`/api/agents/templates/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      }).then((res) => {
+        if (!res.ok) throw new Error('Failed to update template');
+        return res.json() as Promise<{ template: GatewayAgentTemplate }>;
+      }),
+
+    delete: (id: string) =>
+      fetch(`/api/agents/templates/${id}`, { method: 'DELETE' }).then((res) => {
+        if (!res.ok) throw new Error('Failed to delete template');
+        return res.json() as Promise<{ success: boolean }>;
       }),
   },
 

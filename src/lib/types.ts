@@ -59,22 +59,24 @@ export interface MemoryAccess {
   preview?: string;
 }
 
-// Agent Spawner Types
-export type AgentTemplate = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  defaultTask?: string;
-};
+// Agent Spawner Types - Re-export from agents.ts for convenience
+export type {
+  AgentTemplate,
+  AgentInstance,
+  AgentInstanceStatus,
+  SpawnAgentRequest as AgentSpawnRequest,
+  AgentOutputChunk,
+} from './agents';
+export { PRESET_TEMPLATES } from './agents';
 
+// Legacy compatibility - deprecated, use AgentInstance instead
 export type AgentStatus = 'starting' | 'running' | 'paused' | 'completed' | 'failed';
 
 export interface RunningAgent {
   id: string;
   name: string;
   task: string;
-  template: AgentTemplate;
+  template: { id: string; name: string; description: string; icon: string };
   status: AgentStatus;
   startedAt: Date;
   progress?: number;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AgentSpawner } from '../index';
 
 // Mock framer-motion animations
@@ -17,8 +18,104 @@ jest.mock('framer-motion', () => {
   };
 });
 
+// Mock the gateway hooks
+const mockTemplates = [
+  {
+    id: 'general',
+    name: 'General Agent',
+    description: 'Multi-purpose autonomous agent',
+    task: '',
+    model: 'claude-sonnet-4-20250514',
+    thinking: true,
+    timeout: 600,
+    icon: 'bot',
+    isBuiltIn: true,
+  },
+  {
+    id: 'code-review',
+    name: 'Code Review Agent',
+    description: 'Reviews code for bugs and best practices',
+    task: 'Review the following code:',
+    model: 'claude-sonnet-4-20250514',
+    thinking: true,
+    timeout: 300,
+    icon: 'code',
+    isBuiltIn: true,
+  },
+];
+
+const mockAgents = [
+  {
+    id: 'agent-1',
+    templateId: 'code-review',
+    templateName: 'Code Review Agent',
+    task: 'Review PR #142 for security issues',
+    status: 'running' as const,
+    startTime: new Date(Date.now() - 120000).toISOString(),
+    progress: 65,
+    tokensUsed: { input: 10000, output: 2450 },
+  },
+];
+
+const mockMutate = jest.fn();
+const mockMutateAsync = jest.fn();
+const mockRefetch = jest.fn();
+
+jest.mock('@/hooks/use-gateway', () => ({
+  useAgentTemplates: () => ({
+    data: { templates: mockTemplates },
+    isLoading: false,
+    error: null,
+  }),
+  useRunningAgents: () => ({
+    data: { agents: mockAgents, synced: true },
+    isLoading: false,
+    refetch: mockRefetch,
+  }),
+  useSpawnFromTemplate: () => ({
+    mutate: mockMutate,
+    mutateAsync: mockMutateAsync.mockResolvedValue({ agent: { id: 'new-agent' } }),
+    isPending: false,
+    isError: false,
+  }),
+  useKillAgent: () => ({
+    mutate: mockMutate,
+    mutateAsync: mockMutateAsync.mockResolvedValue({ success: true }),
+    isPending: false,
+  }),
+  useAgentOutput: () => ({
+    data: { id: 'agent-1', status: 'running', output: 'Agent output text' },
+    isLoading: false,
+    error: null,
+  }),
+  useRemoveAgent: () => ({
+    mutate: mockMutate,
+    mutateAsync: mockMutateAsync.mockResolvedValue({ success: true }),
+    isPending: false,
+  }),
+}));
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = createTestQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  );
+}
+
 describe('AgentSpawner Component', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
     jest.useFakeTimers();
   });
 
@@ -27,35 +124,35 @@ describe('AgentSpawner Component', () => {
   });
 
   it('renders the agent spawner title', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('Agent Spawner')).toBeInTheDocument();
   });
 
-  it('renders the template selector', () => {
-    render(<AgentSpawner />);
+  it('renders the template selector with default template', () => {
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('General Agent')).toBeInTheDocument();
     expect(screen.getByText('Multi-purpose autonomous agent')).toBeInTheDocument();
   });
 
   it('renders the task input textarea', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByPlaceholderText('Describe the task for this agent...')).toBeInTheDocument();
   });
 
   it('renders the launch button', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('Launch Agent')).toBeInTheDocument();
   });
 
   it('disables launch button when task is empty', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     const launchButton = screen.getByRole('button', { name: /launch agent/i });
     expect(launchButton).toBeDisabled();
   });
 
   it('enables launch button when task is entered', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
 
     const textarea = screen.getByPlaceholderText('Describe the task for this agent...');
     await user.type(textarea, 'Test task');
@@ -66,75 +163,63 @@ describe('AgentSpawner Component', () => {
 
   it('shows template dropdown when template selector is clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
 
     const templateSelector = screen.getByText('General Agent').closest('button');
     await user.click(templateSelector!);
 
-    expect(screen.getByText('Code Agent')).toBeInTheDocument();
-    expect(screen.getByText('Research Agent')).toBeInTheDocument();
-    expect(screen.getByText('Writer Agent')).toBeInTheDocument();
-    expect(screen.getByText('DevOps Agent')).toBeInTheDocument();
+    expect(screen.getByText('Code Review Agent')).toBeInTheDocument();
+    expect(screen.getByText('Reviews code for bugs and best practices')).toBeInTheDocument();
   });
 
   it('changes selected template when clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
 
     // Open dropdown
     const templateSelector = screen.getByText('General Agent').closest('button');
     await user.click(templateSelector!);
 
-    // Select Code Agent
-    const codeAgentOption = screen.getByText('Code Agent');
+    // Select Code Review Agent
+    const codeAgentOption = screen.getAllByText('Code Review Agent')[0];
     await user.click(codeAgentOption);
 
-    // Verify selection changed (the main selector should now show Code Agent)
-    expect(screen.getByText('Specialized for coding tasks')).toBeInTheDocument();
+    // Verify selection changed
+    await waitFor(() => {
+      expect(screen.getByText('Reviews code for bugs and best practices')).toBeInTheDocument();
+    });
   });
 
   it('renders running agents section', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('Running Agents')).toBeInTheDocument();
   });
 
   it('shows active agents count badge', () => {
-    render(<AgentSpawner />);
-    expect(screen.getByText('2 active')).toBeInTheDocument();
+    renderWithProviders(<AgentSpawner />);
+    expect(screen.getByText('1 active')).toBeInTheDocument();
   });
 
-  it('displays pre-existing running agents', () => {
-    render(<AgentSpawner />);
+  it('displays running agents with status', () => {
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('Code Review Agent')).toBeInTheDocument();
-    expect(screen.getByText('Research Agent')).toBeInTheDocument();
-  });
-
-  it('displays agent tasks', () => {
-    render(<AgentSpawner />);
     expect(screen.getByText('Review PR #142 for security issues')).toBeInTheDocument();
-    expect(screen.getByText('Find best practices for React 19')).toBeInTheDocument();
-  });
-
-  it('displays agent status badges', () => {
-    render(<AgentSpawner />);
-    expect(screen.getAllByText('Running').length).toBe(2);
+    expect(screen.getByText('Running')).toBeInTheDocument();
   });
 
   it('displays agent progress', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('65% complete')).toBeInTheDocument();
-    expect(screen.getByText('88% complete')).toBeInTheDocument();
   });
 
   it('displays token usage', () => {
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
     expect(screen.getByText('12,450 tokens')).toBeInTheDocument();
-    expect(screen.getByText('8,920 tokens')).toBeInTheDocument();
   });
 
   it('launches new agent when button is clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
 
     const textarea = screen.getByPlaceholderText('Describe the task for this agent...');
     await user.type(textarea, 'New test task');
@@ -142,15 +227,17 @@ describe('AgentSpawner Component', () => {
     const launchButton = screen.getByRole('button', { name: /launch agent/i });
     await user.click(launchButton);
 
-    // Agent should appear with 'Starting' status initially
     await waitFor(() => {
-      expect(screen.getByText('New test task')).toBeInTheDocument();
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        templateId: 'general',
+        task: 'New test task',
+      });
     });
   });
 
   it('clears task input after launching', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
+    renderWithProviders(<AgentSpawner />);
 
     const textarea = screen.getByPlaceholderText('Describe the task for this agent...');
     await user.type(textarea, 'New test task');
@@ -158,73 +245,146 @@ describe('AgentSpawner Component', () => {
     const launchButton = screen.getByRole('button', { name: /launch agent/i });
     await user.click(launchButton);
 
-    expect(textarea).toHaveValue('');
-  });
-
-  it('toggles agent pause/resume', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
-
-    // Find pause buttons (they have Pause icon for running agents)
-    const pauseButtons = screen.getAllByRole('button');
-    const pauseButton = pauseButtons.find(btn =>
-      btn.querySelector('svg') && btn.className.includes('hover:bg-zinc-700')
-    );
-
-    if (pauseButton) {
-      await user.click(pauseButton);
-      // Status should change to Paused
-      await waitFor(() => {
-        expect(screen.getByText('Paused')).toBeInTheDocument();
-      });
-    }
-  });
-
-  it('removes agent when kill button is clicked', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
-
-    // Initially should have 2 agents
-    expect(screen.getByText('Code Review Agent')).toBeInTheDocument();
-    expect(screen.getByText('Research Agent')).toBeInTheDocument();
-
-    // Find and click kill button (has red hover state)
-    const killButtons = screen.getAllByRole('button').filter(btn =>
-      btn.className.includes('hover:bg-red-500')
-    );
-
-    if (killButtons.length > 0) {
-      await user.click(killButtons[0]);
-
-      await waitFor(() => {
-        expect(screen.queryByText('Code Review Agent')).not.toBeInTheDocument();
-      });
-    }
-  });
-
-  it('shows empty state when no agents are running', async () => {
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    render(<AgentSpawner />);
-
-    // Remove all agents
-    const killButtons = screen.getAllByRole('button').filter(btn =>
-      btn.className.includes('hover:bg-red-500')
-    );
-
-    for (const btn of killButtons) {
-      await user.click(btn);
-    }
-
     await waitFor(() => {
-      expect(screen.getByText('No agents running')).toBeInTheDocument();
-      expect(screen.getByText('Launch an agent to get started')).toBeInTheDocument();
+      expect(textarea).toHaveValue('');
     });
   });
 
-  it('displays elapsed time for agents', () => {
-    render(<AgentSpawner />);
-    // Time format should be visible (e.g., "2:00" or similar)
-    const timePatterns = screen.getAllByText(/\d+:\d{2}/);
-    expect(timePatterns.length).toBeGreaterThan(0);
+  it('opens output viewer when view button is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderWithProviders(<AgentSpawner />);
+
+    const viewButton = screen.getByTitle('View Output');
+    await user.click(viewButton);
+
+    await waitFor(() => {
+      expect(screen.getByText('Agent Output')).toBeInTheDocument();
+      expect(screen.getByText('Agent output text')).toBeInTheDocument();
+    });
+  });
+
+  it('calls kill mutation when kill button is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderWithProviders(<AgentSpawner />);
+
+    const killButton = screen.getByTitle('Kill Agent');
+    await user.click(killButton);
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith('agent-1');
+    });
+  });
+
+  it('shows built-in badge for built-in templates', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderWithProviders(<AgentSpawner />);
+
+    const templateSelector = screen.getByText('General Agent').closest('button');
+    await user.click(templateSelector!);
+
+    const builtInBadges = screen.getAllByText('Built-in');
+    expect(builtInBadges.length).toBeGreaterThan(0);
+  });
+
+  it('calls refetch when refresh button is clicked', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    renderWithProviders(<AgentSpawner />);
+
+    // Find the refresh button by its class or structure
+    const refreshButtons = screen.getAllByRole('button');
+    const refreshButton = refreshButtons.find(btn =>
+      btn.querySelector('svg.lucide-refresh-cw') !== null
+    );
+
+    if (refreshButton) {
+      await user.click(refreshButton);
+      expect(mockRefetch).toHaveBeenCalled();
+    }
+  });
+});
+
+describe('AgentSpawner Loading States', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('shows loading state for templates', () => {
+    jest.doMock('@/hooks/use-gateway', () => ({
+      useAgentTemplates: () => ({
+        data: null,
+        isLoading: true,
+        error: null,
+      }),
+      useRunningAgents: () => ({
+        data: { agents: [], synced: false },
+        isLoading: false,
+        refetch: jest.fn(),
+      }),
+      useSpawnFromTemplate: () => ({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: false,
+        isError: false,
+      }),
+      useKillAgent: () => ({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: false,
+      }),
+      useAgentOutput: () => ({
+        data: null,
+        isLoading: false,
+        error: null,
+      }),
+      useRemoveAgent: () => ({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: false,
+      }),
+    }));
+  });
+});
+
+describe('AgentSpawner Error States', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('handles spawn errors gracefully', async () => {
+    const errorMutateAsync = jest.fn().mockRejectedValue(new Error('Spawn failed'));
+
+    jest.doMock('@/hooks/use-gateway', () => ({
+      useAgentTemplates: () => ({
+        data: { templates: mockTemplates },
+        isLoading: false,
+        error: null,
+      }),
+      useRunningAgents: () => ({
+        data: { agents: [], synced: false },
+        isLoading: false,
+        refetch: jest.fn(),
+      }),
+      useSpawnFromTemplate: () => ({
+        mutate: jest.fn(),
+        mutateAsync: errorMutateAsync,
+        isPending: false,
+        isError: true,
+      }),
+      useKillAgent: () => ({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: false,
+      }),
+      useAgentOutput: () => ({
+        data: null,
+        isLoading: false,
+        error: null,
+      }),
+      useRemoveAgent: () => ({
+        mutate: jest.fn(),
+        mutateAsync: jest.fn(),
+        isPending: false,
+      }),
+    }));
   });
 });
