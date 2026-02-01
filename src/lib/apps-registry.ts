@@ -69,6 +69,18 @@ export const APPS: AppDefinition[] = [
     name: 'Task Queue',
     icon: '🎯',
   },
+  {
+    id: 'workflows',
+    name: 'Workflows',
+    icon: '⚡',
+    shortcut: '⌘W',
+  },
+  {
+    id: 'analytics',
+    name: 'Analytics Dashboard',
+    icon: '📈',
+    shortcut: '⌘A',
+  },
 ];
 
 export const getApp = (id: string): AppDefinition | undefined => {

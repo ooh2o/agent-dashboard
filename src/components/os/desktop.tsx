@@ -1,12 +1,84 @@
 'use client';
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useWindowStore } from '@/lib/stores/window-store';
+import { useDashboardStore, selectActivities } from '@/lib/store';
 import { APPS, getApp } from '@/lib/apps-registry';
 import { Window } from './window';
-import type { AppDefinition } from './types';
+import type { AppDefinition, WindowState } from './types';
+
+// Lazy load app components for better performance
+const ActivityMonitorBase = lazy(() => import('@/components/apps/activity-monitor').then(m => ({ default: m.ActivityMonitor })));
+const CostDashboard = lazy(() => import('@/components/apps/cost-dashboard').then(m => ({ default: m.CostDashboard })));
+const MessageCenter = lazy(() => import('@/components/apps/message-center').then(m => ({ default: m.MessageCenter })));
+const TerminalConsole = lazy(() => import('@/components/apps/terminal').then(m => ({ default: m.TerminalConsole })));
+const Workflows = lazy(() => import('@/components/apps/workflows').then(m => ({ default: m.Workflows })));
+const AnalyticsDashboard = lazy(() => import('@/components/apps/analytics').then(m => ({ default: m.AnalyticsDashboard })));
+
+// Wrapper for ActivityMonitor to inject activities from store
+function ActivityMonitor({ onClose, onMinimize, onMaximize }: {
+  onClose?: () => void;
+  onMinimize?: () => void;
+  onMaximize?: () => void;
+}) {
+  const activities = useDashboardStore(selectActivities);
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full text-zinc-500"><div className="animate-pulse">Loading...</div></div>}>
+      <ActivityMonitorBase
+        activities={activities}
+        onClose={onClose}
+        onMinimize={onMinimize}
+        onMaximize={onMaximize}
+      />
+    </Suspense>
+  );
+}
+
+// Map app IDs to their components
+const APP_COMPONENTS: Record<string, React.ComponentType<{
+  onClose?: () => void;
+  onMinimize?: () => void;
+  onMaximize?: () => void;
+}>> = {
+  'activity-monitor': ActivityMonitor,
+  'cost-dashboard': CostDashboard,
+  'message-center': MessageCenter,
+  'terminal': TerminalConsole,
+  'workflows': Workflows,
+  'analytics': AnalyticsDashboard,
+};
+
+function AppContent({ win }: { win: WindowState }) {
+  const { closeWindow, minimizeWindow, maximizeWindow } = useWindowStore();
+  const app = getApp(win.appId);
+  const AppComponent = APP_COMPONENTS[win.appId];
+
+  if (AppComponent) {
+    return (
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-full text-zinc-500">
+          <div className="animate-pulse">Loading...</div>
+        </div>
+      }>
+        <AppComponent
+          onClose={() => closeWindow(win.id)}
+          onMinimize={() => minimizeWindow(win.id)}
+          onMaximize={() => maximizeWindow(win.id)}
+        />
+      </Suspense>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-400">
+      <span className="text-6xl">{app?.icon || '📱'}</span>
+      <span className="text-lg font-medium">{win.title}</span>
+      <span className="text-sm text-zinc-500">App content coming soon...</span>
+    </div>
+  );
+}
 
 interface DesktopProps {
   children?: React.ReactNode;
@@ -71,22 +143,11 @@ export function Desktop({ children }: DesktopProps) {
 
       {/* Windows */}
       <AnimatePresence>
-        {windows.map((win) => {
-          const app = getApp(win.appId);
-          return (
-            <Window key={win.id} window={win}>
-              {app?.component ? (
-                <app.component />
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-400">
-                  <span className="text-6xl">{app?.icon || '📱'}</span>
-                  <span className="text-lg font-medium">{win.title}</span>
-                  <span className="text-sm text-zinc-500">App content coming soon...</span>
-                </div>
-              )}
-            </Window>
-          );
-        })}
+        {windows.map((win) => (
+          <Window key={win.id} window={win}>
+            <AppContent win={win} />
+          </Window>
+        ))}
       </AnimatePresence>
 
       {/* Additional children (e.g., Spotlight) */}

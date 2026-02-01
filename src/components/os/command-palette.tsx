@@ -24,6 +24,7 @@ import {
   Keyboard,
   HelpCircle,
   ExternalLink,
+  Workflow,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -496,6 +497,16 @@ export function useDefaultCommands(callbacks: {
       keywords: ['tasks', 'queue', 'todo'],
       shortcut: [MOD_KEY, '0'],
       action: () => callbacks.openApp?.('task-queue'),
+    },
+    {
+      id: 'app-workflows',
+      label: 'Workflows',
+      description: 'Automate tasks with triggers and actions',
+      icon: Workflow,
+      category: 'Apps',
+      keywords: ['automation', 'workflows', 'triggers', 'cron', 'events'],
+      shortcut: [MOD_KEY, 'w'],
+      action: () => callbacks.openApp?.('workflows'),
     },
 
     // Actions
