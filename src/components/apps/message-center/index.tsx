@@ -1,152 +1,223 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ChannelTabs } from './channel-tabs';
 import { ThreadList } from './thread-list';
 import { ThreadView } from './thread-view';
 import { ReplyBox } from './reply-box';
-import { Thread, Message, Channel } from './types';
-import { Search, Settings } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Thread, Message, Channel, ChannelConfig } from './types';
+import { Search, AlertCircle, Loader2, WifiOff } from 'lucide-react';
+import { useChannels, useMessages, useSendMessage } from '@/hooks/use-gateway';
+import { useEventStream, type MessageEvent as SSEMessageEvent } from '@/hooks/use-event-stream';
 
-// Mock data for demonstration
-const mockThreads: Thread[] = [
-  {
-    id: '1',
-    channel: 'telegram',
-    participants: [{ id: 'u1', name: 'Alex Chen', avatar: '' }],
-    lastMessage: {
-      id: 'm1',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content: 'Task completed successfully. The deployment is live.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      status: 'read',
-    },
-    unreadCount: 0,
-    isPinned: true,
-    updatedAt: new Date(Date.now() - 1000 * 60 * 5),
+/**
+ * Convert gateway message format to local Message type
+ */
+function convertGatewayMessage(
+  gatewayMsg: {
+    id: string;
+    channel: string;
+    threadId?: string;
+    sender: string;
+    content: string;
+    timestamp: string;
+    metadata?: Record<string, unknown>;
   },
-  {
-    id: '2',
-    channel: 'discord',
-    participants: [{ id: 'u2', name: 'Sarah Miller' }],
-    lastMessage: {
-      id: 'm2',
-      threadId: '2',
-      channel: 'discord',
-      sender: { id: 'u2', name: 'Sarah Miller' },
-      content: 'Can you check the latest PR? I left some comments.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      status: 'delivered',
+  threadId: string
+): Message {
+  const isAgent = gatewayMsg.sender === 'chief' || gatewayMsg.sender === 'Chief';
+  return {
+    id: gatewayMsg.id,
+    threadId: gatewayMsg.threadId || threadId,
+    channel: gatewayMsg.channel as Channel,
+    sender: {
+      id: isAgent ? 'chief' : gatewayMsg.sender,
+      name: isAgent ? 'Chief' : gatewayMsg.sender,
+      isAgent,
     },
-    unreadCount: 3,
-    updatedAt: new Date(Date.now() - 1000 * 60 * 15),
-  },
-  {
-    id: '3',
-    channel: 'telegram',
-    participants: [{ id: 'u3', name: 'DevOps Team' }],
-    lastMessage: {
-      id: 'm3',
-      threadId: '3',
-      channel: 'telegram',
-      sender: { id: 'u3', name: 'Mike' },
-      content: 'Server metrics are back to normal.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60),
-      status: 'read',
-    },
-    unreadCount: 0,
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60),
-  },
-  {
-    id: '4',
-    channel: 'email',
-    participants: [{ id: 'u4', name: 'Jennifer Lopez' }],
-    lastMessage: {
-      id: 'm4',
-      threadId: '4',
-      channel: 'email',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content: 'Here is the weekly report summary you requested.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3),
-      status: 'sent',
-    },
-    unreadCount: 1,
-    updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 3),
-  },
-];
+    content: gatewayMsg.content,
+    timestamp: new Date(gatewayMsg.timestamp),
+    status: 'read',
+  };
+}
 
-const mockMessages: Record<string, Message[]> = {
-  '1': [
-    {
-      id: 'm1-1',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'u1', name: 'Alex Chen' },
-      content: 'Hey Chief, can you deploy the latest changes to production?',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30),
-      status: 'read',
-    },
-    {
-      id: 'm1-2',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content: 'Sure, I\'ll start the deployment pipeline now. This includes the new authentication module and performance optimizations.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 28),
-      status: 'read',
-    },
-    {
-      id: 'm1-3',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content: 'Deployment started. I\'ll notify you once it\'s complete.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 25),
-      status: 'read',
-    },
-    {
-      id: 'm1-4',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'u1', name: 'Alex Chen' },
-      content: 'Thanks! Let me know if there are any issues.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 20),
-      status: 'read',
-    },
-    {
-      id: 'm1-5',
-      threadId: '1',
-      channel: 'telegram',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content: 'Task completed successfully. The deployment is live.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      status: 'read',
-    },
-  ],
-  '2': [
-    {
-      id: 'm2-1',
-      threadId: '2',
-      channel: 'discord',
-      sender: { id: 'u2', name: 'Sarah Miller' },
-      content: 'Can you check the latest PR? I left some comments.',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      status: 'delivered',
-    },
-  ],
-};
+/**
+ * Group messages into threads based on sender/channel
+ */
+function groupMessagesIntoThreads(
+  messages: Array<{
+    id: string;
+    channel: string;
+    threadId?: string;
+    sender: string;
+    content: string;
+    timestamp: string;
+    metadata?: Record<string, unknown>;
+  }>
+): Thread[] {
+  const threadMap = new Map<string, Thread>();
+
+  for (const msg of messages) {
+    const threadId = msg.threadId || `${msg.channel}-${msg.sender}`;
+    const isAgent = msg.sender === 'chief' || msg.sender === 'Chief';
+
+    if (!threadMap.has(threadId)) {
+      threadMap.set(threadId, {
+        id: threadId,
+        channel: msg.channel as Channel,
+        participants: isAgent
+          ? [{ id: 'chief', name: 'Chief' }]
+          : [{ id: msg.sender, name: msg.sender }],
+        unreadCount: 0,
+        updatedAt: new Date(msg.timestamp),
+      });
+    }
+
+    const thread = threadMap.get(threadId)!;
+    const convertedMsg = convertGatewayMessage(msg, threadId);
+
+    // Update last message if this is newer
+    if (!thread.lastMessage || convertedMsg.timestamp > thread.lastMessage.timestamp) {
+      thread.lastMessage = convertedMsg;
+      thread.updatedAt = convertedMsg.timestamp;
+    }
+  }
+
+  // Sort threads by last activity
+  return Array.from(threadMap.values()).sort(
+    (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
+  );
+}
 
 export function MessageCenter() {
   const [activeChannel, setActiveChannel] = useState<Channel | 'all'>('all');
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>('1');
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [threads, setThreads] = useState(mockThreads);
-  const [messages, setMessages] = useState(mockMessages);
+  const [optimisticMessages, setOptimisticMessages] = useState<Message[]>([]);
+  const [sseMessages, setSseMessages] = useState<Message[]>([]);
+
+  // Fetch channels
+  const {
+    data: channelsData,
+    isLoading: channelsLoading,
+    error: channelsError,
+  } = useChannels();
+
+  // Fetch messages
+  const {
+    data: messagesData,
+    isLoading: messagesLoading,
+    error: messagesError,
+    refetch: refetchMessages,
+  } = useMessages({
+    channel: activeChannel === 'all' ? undefined : activeChannel,
+    search: searchQuery || undefined,
+    limit: 100,
+  });
+
+  // Send message mutation
+  const sendMessage = useSendMessage();
+
+  // SSE for real-time updates
+  const handleSSEMessage = useCallback((msg: SSEMessageEvent) => {
+    const message: Message = {
+      id: msg.id,
+      threadId: msg.channel,
+      channel: msg.channel as Channel,
+      sender: {
+        id: msg.sender,
+        name: msg.sender,
+        isAgent: msg.sender === 'chief' || msg.sender === 'Chief',
+      },
+      content: msg.content,
+      timestamp: new Date(msg.timestamp),
+      status: 'delivered',
+    };
+
+    setSseMessages((prev) => {
+      // Avoid duplicates
+      if (prev.some((m) => m.id === message.id)) return prev;
+      return [...prev, message];
+    });
+
+    // Refetch messages to get full context
+    refetchMessages();
+  }, [refetchMessages]);
+
+  const { isConnected, connectionError } = useEventStream({
+    onMessage: handleSSEMessage,
+  });
+
+  // Convert channels data to ChannelConfig format
+  const channels: ChannelConfig[] = useMemo(() => {
+    if (!channelsData?.channels) {
+      return [
+        { id: 'telegram', name: 'Telegram', icon: 'telegram', color: 'text-sky-400', bgColor: 'bg-sky-400/10', connected: false },
+        { id: 'discord', name: 'Discord', icon: 'discord', color: 'text-indigo-400', bgColor: 'bg-indigo-400/10', connected: false },
+        { id: 'signal', name: 'Signal', icon: 'signal', color: 'text-blue-400', bgColor: 'bg-blue-400/10', connected: false },
+        { id: 'email', name: 'Email', icon: 'email', color: 'text-amber-400', bgColor: 'bg-amber-400/10', connected: false },
+      ];
+    }
+
+    return channelsData.channels.map((ch) => ({
+      id: ch.id as Channel,
+      name: ch.name,
+      icon: ch.icon,
+      color: ch.color,
+      bgColor: ch.bgColor,
+      connected: ch.connected,
+    }));
+  }, [channelsData]);
+
+  // Convert messages to threads
+  const threads = useMemo(() => {
+    const gatewayMessages = messagesData?.messages || [];
+    return groupMessagesIntoThreads(gatewayMessages);
+  }, [messagesData]);
+
+  // Build messages map for thread view
+  const messagesMap = useMemo(() => {
+    const map: Record<string, Message[]> = {};
+    const gatewayMessages = messagesData?.messages || [];
+
+    for (const msg of gatewayMessages) {
+      const threadId = msg.threadId || `${msg.channel}-${msg.sender}`;
+      if (!map[threadId]) {
+        map[threadId] = [];
+      }
+      map[threadId].push(convertGatewayMessage(msg, threadId));
+    }
+
+    // Add SSE messages
+    for (const msg of sseMessages) {
+      const threadId = msg.threadId;
+      if (!map[threadId]) {
+        map[threadId] = [];
+      }
+      // Avoid duplicates
+      if (!map[threadId].some((m) => m.id === msg.id)) {
+        map[threadId].push(msg);
+      }
+    }
+
+    // Add optimistic messages
+    for (const msg of optimisticMessages) {
+      const threadId = msg.threadId;
+      if (!map[threadId]) {
+        map[threadId] = [];
+      }
+      map[threadId].push(msg);
+    }
+
+    // Sort messages by timestamp within each thread
+    for (const threadId of Object.keys(map)) {
+      map[threadId].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    }
+
+    return map;
+  }, [messagesData, sseMessages, optimisticMessages]);
 
   // Filter threads by channel and search
   const filteredThreads = useMemo(() => {
@@ -178,54 +249,83 @@ export function MessageCenter() {
     return counts;
   }, [threads]);
 
+  // Auto-select first thread when threads change
+  useEffect(() => {
+    if (!selectedThreadId && filteredThreads.length > 0) {
+      setSelectedThreadId(filteredThreads[0].id);
+    }
+  }, [filteredThreads, selectedThreadId]);
+
   const selectedThread = threads.find((t) => t.id === selectedThreadId) || null;
-  const selectedMessages = selectedThreadId ? messages[selectedThreadId] || [] : [];
+  const selectedMessages = selectedThreadId ? messagesMap[selectedThreadId] || [] : [];
 
-  const handleSendMessage = (content: string) => {
-    if (!selectedThreadId) return;
+  const handleSendMessage = useCallback(
+    async (content: string) => {
+      if (!selectedThread) return;
 
-    const newMessage: Message = {
-      id: `m-${Date.now()}`,
-      threadId: selectedThreadId,
-      channel: selectedThread?.channel || 'telegram',
-      sender: { id: 'chief', name: 'Chief', isAgent: true },
-      content,
-      timestamp: new Date(),
-      status: 'sending',
-    };
+      // Create optimistic message
+      const optimisticMsg: Message = {
+        id: `optimistic-${Date.now()}`,
+        threadId: selectedThread.id,
+        channel: selectedThread.channel,
+        sender: { id: 'chief', name: 'Chief', isAgent: true },
+        content,
+        timestamp: new Date(),
+        status: 'sending',
+      };
 
-    setMessages((prev) => ({
-      ...prev,
-      [selectedThreadId]: [...(prev[selectedThreadId] || []), newMessage],
-    }));
+      setOptimisticMessages((prev) => [...prev, optimisticMsg]);
 
-    // Update thread's last message
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === selectedThreadId
-          ? { ...t, lastMessage: newMessage, updatedAt: new Date() }
-          : t
-      )
-    );
+      try {
+        await sendMessage.mutateAsync({
+          channel: selectedThread.channel,
+          content,
+          threadId: selectedThread.id,
+        });
 
-    // Simulate message being sent
-    setTimeout(() => {
-      setMessages((prev) => ({
-        ...prev,
-        [selectedThreadId]: prev[selectedThreadId].map((m) =>
-          m.id === newMessage.id ? { ...m, status: 'sent' as const } : m
-        ),
-      }));
-    }, 500);
-  };
+        // Update optimistic message to sent
+        setOptimisticMessages((prev) =>
+          prev.map((m) =>
+            m.id === optimisticMsg.id ? { ...m, status: 'sent' as const } : m
+          )
+        );
+
+        // Remove optimistic message after refetch
+        setTimeout(() => {
+          setOptimisticMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+        }, 2000);
+      } catch {
+        // Mark as failed
+        setOptimisticMessages((prev) =>
+          prev.map((m) =>
+            m.id === optimisticMsg.id ? { ...m, status: 'failed' as const } : m
+          )
+        );
+      }
+    },
+    [selectedThread, sendMessage]
+  );
+
+  const isLoading = messagesLoading && !messagesData;
+  const hasError = messagesError || channelsError;
 
   return (
     <Card className="h-full flex flex-col border-zinc-800 bg-zinc-900/50 backdrop-blur overflow-hidden">
+      {/* Connection status indicator */}
+      {!isConnected && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs">
+          <WifiOff className="h-3 w-3" />
+          <span>{connectionError || 'Connecting to real-time updates...'}</span>
+        </div>
+      )}
+
       {/* Channel tabs */}
       <ChannelTabs
         activeChannel={activeChannel}
         onChannelChange={setActiveChannel}
         unreadCounts={unreadCounts}
+        channels={channels}
+        isLoading={channelsLoading}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -246,12 +346,26 @@ export function MessageCenter() {
 
           {/* Threads */}
           <div className="flex-1 overflow-hidden">
-            <ThreadList
-              threads={filteredThreads}
-              selectedThreadId={selectedThreadId}
-              onSelectThread={setSelectedThreadId}
-              showChannelBadge={activeChannel === 'all'}
-            />
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+                <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                <span className="text-sm">Loading messages...</span>
+              </div>
+            ) : hasError ? (
+              <div className="flex flex-col items-center justify-center h-full text-zinc-500 px-4">
+                <AlertCircle className="h-6 w-6 mb-2 text-red-400" />
+                <span className="text-sm text-center">
+                  Failed to load messages. Check gateway connection.
+                </span>
+              </div>
+            ) : (
+              <ThreadList
+                threads={filteredThreads}
+                selectedThreadId={selectedThreadId}
+                onSelectThread={setSelectedThreadId}
+                showChannelBadge={activeChannel === 'all'}
+              />
+            )}
           </div>
         </div>
 
@@ -262,6 +376,7 @@ export function MessageCenter() {
             thread={selectedThread}
             onSendMessage={handleSendMessage}
             onSendAsChief={handleSendMessage}
+            disabled={sendMessage.isPending}
           />
         </div>
       </div>

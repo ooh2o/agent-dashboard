@@ -138,7 +138,7 @@ export function useWindowFocus(id: string, ref: React.RefObject<HTMLElement | nu
 // Hook for live region announcements (screen reader support)
 export function useLiveRegion() {
   const [message, setMessage] = useState('');
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const announce = useCallback((text: string) => {
     // Clear previous timeout

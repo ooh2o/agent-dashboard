@@ -25,6 +25,7 @@ const eventConfig: Record<
   web_search: { icon: Search, color: 'text-blue-400' },
   memory_read: { icon: FileText, color: 'text-green-400' },
   memory_write: { icon: Edit3, color: 'text-emerald-400' },
+  memory_access: { icon: FileText, color: 'text-lime-400' },
   thinking: { icon: Brain, color: 'text-purple-400' },
   tool_call: { icon: Wrench, color: 'text-orange-400' },
   file_read: { icon: FileText, color: 'text-cyan-400' },

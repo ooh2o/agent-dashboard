@@ -109,7 +109,7 @@ describe('Gateway API Client', () => {
         content: 'Hello!',
       });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/gateway/messages', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/gateway/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channel: 'telegram', content: 'Hello!' }),
