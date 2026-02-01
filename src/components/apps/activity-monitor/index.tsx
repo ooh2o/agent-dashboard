@@ -19,10 +19,10 @@ import {
   X,
 } from 'lucide-react';
 import { ActivityEvent, EventType } from '@/lib/types';
-import { formatDistanceToNow } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ActivityItem } from './activity-item';
 
-const eventConfig: Record<
+export const eventConfig: Record<
   EventType,
   { icon: React.ElementType; color: string; bgColor: string; label: string }
 > = {
@@ -199,65 +199,14 @@ export function ActivityMonitor({
           <AnimatePresence initial={false}>
             {filteredActivities.map((activity, index) => {
               const config = eventConfig[activity.type];
-              const Icon = config.icon;
 
               return (
-                <motion.div
+                <ActivityItem
                   key={activity.id}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.2, delay: index * 0.02 }}
-                  className={cn(
-                    'group relative flex items-start gap-3 py-3 border-b border-zinc-800/50 last:border-0',
-                    activity.result === 'error' && 'bg-red-500/5'
-                  )}
-                >
-                  {activity.result === 'error' && (
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-500" />
-                  )}
-                  <div
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${config.bgColor}`}
-                  >
-                    <Icon className={`h-4 w-4 ${config.color}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-[10px] px-1.5 py-0 border-current',
-                          config.color
-                        )}
-                      >
-                        {config.label}
-                      </Badge>
-                      {activity.tool && (
-                        <span className="text-xs text-zinc-500 font-mono">
-                          {activity.tool}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-zinc-200 leading-relaxed mt-1">
-                      {activity.explanation}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      {activity.durationMs && (
-                        <span className="text-xs text-zinc-500">
-                          {activity.durationMs}ms
-                        </span>
-                      )}
-                      {activity.tokens && (
-                        <span className="text-xs text-zinc-500">
-                          {activity.tokens.input + activity.tokens.output} tokens
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-xs text-zinc-500 shrink-0">
-                    {formatDistanceToNow(activity.timestamp)}
-                  </div>
-                </motion.div>
+                  activity={activity}
+                  config={config}
+                  index={index}
+                />
               );
             })}
           </AnimatePresence>

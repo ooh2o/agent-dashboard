@@ -2,6 +2,7 @@
 
 import { ThemeProvider } from './theme-provider';
 import { AccessibilityProvider } from './accessibility-provider';
+import { LiveDataProvider } from '@/components/providers/live-data-provider';
 import type { AccentColor, ThemeMode } from './theme-provider';
 import type { CommandItem } from './command-palette';
 
@@ -26,7 +27,9 @@ export function Providers({
         additionalCommands={additionalCommands}
         onOpenApp={onOpenApp}
       >
-        {children}
+        <LiveDataProvider pollInterval={5000}>
+          {children}
+        </LiveDataProvider>
       </AccessibilityProvider>
     </ThemeProvider>
   );

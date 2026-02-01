@@ -1,8 +1,9 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Calendar, Bell, Repeat, Trash2 } from 'lucide-react';
+import { Clock, Calendar, Bell, Repeat, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Event {
@@ -12,20 +13,69 @@ interface Event {
   type: 'reminder' | 'cron' | 'event';
   color: string;
   recurring?: boolean;
+  nextRun?: Date;
+}
+
+interface CronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule: {
+    kind: string;
+    expr?: string;
+  };
+  state?: {
+    nextRunAtMs?: number;
+  };
 }
 
 interface EventListProps {
   selectedDate: Date | null;
 }
 
-const mockEvents: Event[] = [
-  { id: '1', title: 'Daily standup reminder', time: '09:00', type: 'reminder', color: 'bg-blue-400', recurring: true },
-  { id: '2', title: 'Memory cleanup job', time: '12:00', type: 'cron', color: 'bg-purple-400', recurring: true },
-  { id: '3', title: 'Review agent logs', time: '14:00', type: 'reminder', color: 'bg-green-400' },
-  { id: '4', title: 'Cost report generation', time: '18:00', type: 'cron', color: 'bg-orange-400', recurring: true },
-];
+function cronToEvents(jobs: CronJob[]): Event[] {
+  return jobs.filter(j => j.enabled).map((job, index) => {
+    const colors = ['bg-blue-400', 'bg-purple-400', 'bg-green-400', 'bg-orange-400', 'bg-pink-400'];
+    const nextRun = job.state?.nextRunAtMs ? new Date(job.state.nextRunAtMs) : undefined;
+    const time = nextRun 
+      ? nextRun.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : job.schedule.expr || 'scheduled';
+    
+    return {
+      id: job.id,
+      title: job.name || 'Unnamed Job',
+      time,
+      type: 'cron' as const,
+      color: colors[index % colors.length],
+      recurring: job.schedule.kind === 'cron' || job.schedule.kind === 'every',
+      nextRun,
+    };
+  });
+}
 
 export function EventList({ selectedDate }: EventListProps) {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEvents = useCallback(async () => {
+    try {
+      const res = await fetch('/api/live/cron');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.jobs) {
+          setEvents(cronToEvents(data.jobs));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch cron jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
   const formatDate = (date: Date | null) => {
     if (!date) return 'No date selected';
     const today = new Date();
@@ -46,6 +96,15 @@ export function EventList({ selectedDate }: EventListProps) {
     event: { icon: Calendar, label: 'Event' },
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8 text-zinc-500">
+        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+        Loading events...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -53,12 +112,12 @@ export function EventList({ selectedDate }: EventListProps) {
           {formatDate(selectedDate)}
         </h4>
         <Badge variant="secondary" className="bg-zinc-800 text-zinc-400">
-          {mockEvents.length} events
+          {events.length} events
         </Badge>
       </div>
 
       <div className="space-y-2">
-        {mockEvents.map((event, index) => {
+        {events.map((event, index) => {
           const TypeIcon = typeConfig[event.type].icon;
           return (
             <motion.div
@@ -99,7 +158,7 @@ export function EventList({ selectedDate }: EventListProps) {
         })}
       </div>
 
-      {mockEvents.length === 0 && (
+      {events.length === 0 && (
         <div className="text-center py-8">
           <Calendar className="h-8 w-8 text-zinc-600 mx-auto mb-2" />
           <p className="text-sm text-zinc-500">No events for this day</p>

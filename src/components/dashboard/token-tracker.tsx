@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Coins, Clock, TrendingUp, Cpu } from 'lucide-react';
 import { Session } from '@/lib/types';
 import { formatDuration, formatNumber, formatCurrency } from '@/lib/format';
-import { calculateCost, TOKEN_PRICING } from '@/lib/mock-data';
+import { calculateCostBreakdown, TOKEN_PRICING } from '@/lib/openclaw-data';
 
 interface TokenTrackerProps {
   session: Session;
@@ -22,8 +22,8 @@ export function TokenTracker({ session }: TokenTrackerProps) {
   const budgetLimit = 50000; // Arbitrary budget limit for progress bar
   const usagePercentage = Math.min((totalTokens / budgetLimit) * 100, 100);
 
-  const costs = calculateCost(
-    session.model as keyof typeof TOKEN_PRICING,
+  const costs = calculateCostBreakdown(
+    session.model,
     session.totalTokens.input,
     session.totalTokens.output
   );

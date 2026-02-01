@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,10 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  RefreshCw,
+  ListTodo,
 } from 'lucide-react';
 import { Tool, ToolCategory, ToolTestResult } from '@/lib/types';
-import { mockTools } from '@/lib/mock-data';
 import { formatDistanceToNow, formatNumber } from '@/lib/format';
 
 const iconMap: Record<string, React.ElementType> = {
@@ -50,6 +51,7 @@ const iconMap: Record<string, React.ElementType> = {
   MessageSquare,
   Brain,
   Wrench,
+  ListTodo,
 };
 
 const categoryConfig: Record<ToolCategory, { label: string; color: string; bgColor: string }> = {
@@ -62,7 +64,9 @@ const categoryConfig: Record<ToolCategory, { label: string; color: string; bgCol
 };
 
 export function ToolsInspector() {
-  const [tools, setTools] = useState<Tool[]>(mockTools);
+  const [tools, setTools] = useState<Tool[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ToolCategory | 'all'>('all');
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
@@ -71,6 +75,35 @@ export function ToolsInspector() {
   const [isTestRunning, setIsTestRunning] = useState(false);
 
   const categories: (ToolCategory | 'all')[] = ['all', 'file', 'web', 'system', 'ai', 'memory', 'communication'];
+
+  // Fetch tools from live API
+  const fetchTools = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/live/tools');
+      if (!res.ok) throw new Error('Failed to fetch tools');
+      const data = await res.json();
+      if (data.ok && data.tools) {
+        // Convert lastUsed strings to Date objects
+        const toolsWithDates = data.tools.map((tool: Tool) => ({
+          ...tool,
+          lastUsed: tool.lastUsed ? new Date(tool.lastUsed) : undefined,
+        }));
+        setTools(toolsWithDates);
+      }
+    } catch (err) {
+      console.error('Error fetching tools:', err);
+      setError('Failed to load tools');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchTools();
+  }, [fetchTools]);
 
   const filteredTools = useMemo(() => {
     return tools.filter((tool) => {
@@ -143,6 +176,16 @@ export function ToolsInspector() {
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={fetchTools}
+              disabled={loading}
+              className="text-zinc-400 hover:text-zinc-200"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-green-500" />
               <span className="text-zinc-400">{stats.enabled}/{stats.total} enabled</span>

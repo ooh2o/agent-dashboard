@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,17 +24,99 @@ import {
   MoreHorizontal,
   Home,
   Copy,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockFileTree, getFilePreview } from './mock-data';
 import { FileNode, GitStatus } from './types';
 
+// Convert API response to FileNode format
+interface ApiFileInfo {
+  id: string;
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modifiedAt?: string;
+  extension?: string;
+  children?: ApiFileInfo[];
+}
+
+function apiToFileNode(file: ApiFileInfo): FileNode {
+  return {
+    id: file.id,
+    name: file.name,
+    type: file.type === 'directory' ? 'directory' : 'file',
+    path: file.path,
+    size: file.size,
+    extension: file.extension,
+    lastModified: file.modifiedAt ? new Date(file.modifiedAt) : undefined,
+    children: file.children?.map(apiToFileNode),
+  };
+}
+
+function createRootNode(files: ApiFileInfo[]): FileNode {
+  return {
+    id: 'root',
+    name: 'workspace',
+    type: 'directory',
+    path: '',
+    children: files.map(apiToFileNode),
+  };
+}
+
 export function FileBrowser() {
+  const [fileTree, setFileTree] = useState<FileNode | null>(null);
+  const [loading, setLoading] = useState(true);
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(
-    new Set(['root', 'src', 'components'])
+    new Set(['root'])
   );
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+
+  const fetchFiles = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/live/files?depth=3');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.files) {
+          setFileTree(createRootNode(data.files));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch files:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchFileContent = useCallback(async (filePath: string) => {
+    try {
+      const res = await fetch(`/api/live/files/content?path=${encodeURIComponent(filePath)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.content) {
+          setFilePreview(data.content);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch file content:', error);
+      setFilePreview(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFiles();
+  }, [fetchFiles]);
+
+  useEffect(() => {
+    if (selectedFile && selectedFile.type === 'file') {
+      fetchFileContent(selectedFile.path);
+    } else {
+      setFilePreview(null);
+    }
+  }, [selectedFile, fetchFileContent]);
 
   const toggleDir = (id: string) => {
     setExpandedDirs((prev) => {
@@ -49,6 +131,7 @@ export function FileBrowser() {
   };
 
   const flattenedFiles = useMemo(() => {
+    if (!fileTree) return [];
     const files: FileNode[] = [];
     const traverse = (node: FileNode) => {
       files.push(node);
@@ -56,9 +139,9 @@ export function FileBrowser() {
         node.children.forEach(traverse);
       }
     };
-    traverse(mockFileTree);
+    traverse(fileTree);
     return files;
-  }, []);
+  }, [fileTree]);
 
   const filteredFiles = useMemo(() => {
     if (!searchQuery.trim()) return null;
@@ -69,7 +152,7 @@ export function FileBrowser() {
     );
   }, [searchQuery, flattenedFiles]);
 
-  const preview = selectedFile ? getFilePreview(selectedFile.path) : null;
+  const preview = filePreview;
 
   const gitStats = useMemo(() => {
     const stats = { modified: 0, added: 0, untracked: 0 };
@@ -156,14 +239,19 @@ export function FileBrowser() {
                     ))
                   )}
                 </motion.div>
-              ) : (
+              ) : loading ? (
+                <div className="flex items-center justify-center py-8 text-zinc-500">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Loading files...
+                </div>
+              ) : fileTree ? (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                 >
                   <TreeNode
-                    node={mockFileTree}
+                    node={fileTree}
                     depth={0}
                     expandedDirs={expandedDirs}
                     selectedFile={selectedFile}
@@ -171,6 +259,10 @@ export function FileBrowser() {
                     onSelect={setSelectedFile}
                   />
                 </motion.div>
+              ) : (
+                <div className="text-center py-8 text-zinc-500">
+                  No files found
+                </div>
               )}
             </AnimatePresence>
           </div>
@@ -228,9 +320,9 @@ export function FileBrowser() {
 
         {/* Preview Content */}
         <ScrollArea className="flex-1">
-          {preview ? (
+          {preview && selectedFile ? (
             <div className="p-4">
-              <CodePreview content={preview.content} language={preview.language} />
+              <CodePreview content={preview} language={selectedFile.extension || 'txt'} />
             </div>
           ) : selectedFile ? (
             <div className="flex flex-col items-center justify-center h-64 text-zinc-500">

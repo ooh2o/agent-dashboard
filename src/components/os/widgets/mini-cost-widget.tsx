@@ -1,39 +1,50 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Coins, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/format';
-import { mockSession, calculateCost, TOKEN_PRICING } from '@/lib/mock-data';
 
 export function MiniCostWidget() {
   const [todaysCost, setTodaysCost] = useState(0);
   const [tokensUsed, setTokensUsed] = useState(0);
   const [trend, setTrend] = useState<'up' | 'down' | 'stable'>('stable');
+  const prevCost = useRef(0);
 
-  // Simulate real-time cost updates
-  useEffect(() => {
-    const costs = calculateCost(
-      mockSession.model as keyof typeof TOKEN_PRICING,
-      mockSession.totalTokens.input,
-      mockSession.totalTokens.output
-    );
-    setTodaysCost(costs.totalCost);
-    setTokensUsed(mockSession.totalTokens.input + mockSession.totalTokens.output);
-
-    // Simulate cost changes
-    const interval = setInterval(() => {
-      setTodaysCost((prev) => {
-        const change = Math.random() * 0.05;
-        const newCost = prev + change;
-        setTrend(change > 0.02 ? 'up' : change < 0.01 ? 'down' : 'stable');
-        return newCost;
-      });
-      setTokensUsed((prev) => prev + Math.floor(Math.random() * 500));
-    }, 3000);
-
-    return () => clearInterval(interval);
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/live/stats');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.today) {
+          const newCost = data.today.cost || 0;
+          const newTokens = data.today.tokens || 0;
+          
+          // Determine trend
+          if (newCost > prevCost.current + 0.01) {
+            setTrend('up');
+          } else if (newCost < prevCost.current) {
+            setTrend('down');
+          } else {
+            setTrend('stable');
+          }
+          prevCost.current = newCost;
+          
+          setTodaysCost(newCost);
+          setTokensUsed(newTokens);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
   }, []);
+
+  // Initial fetch and auto-refresh every 10 seconds
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   const budgetLimit = 10; // $10 daily budget
   const percentUsed = (todaysCost / budgetLimit) * 100;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,9 +25,10 @@ import {
   Moon,
   Filter,
   MoreHorizontal,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Notification, NotificationType, NotificationPriority } from '@/lib/types';
-import { mockNotifications } from '@/lib/mock-data';
 import { formatDistanceToNow } from '@/lib/format';
 
 const typeConfig: Record<
@@ -56,11 +57,41 @@ interface NotificationGroup {
 }
 
 export function NotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const [doNotDisturb, setDoNotDisturb] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['all']));
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [showGrouped, setShowGrouped] = useState(true);
+
+  // Fetch notifications from live API
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/live/notifications');
+      if (!res.ok) throw new Error('Failed to fetch notifications');
+      const data = await res.json();
+      if (data.ok && data.notifications) {
+        // Convert timestamp strings to Date objects
+        const notifsWithDates = data.notifications.map((n: Notification) => ({
+          ...n,
+          timestamp: typeof n.timestamp === 'string' ? new Date(n.timestamp) : n.timestamp,
+        }));
+        setNotifications(notifsWithDates);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initial fetch and polling
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { decodeAndValidatePath } from '@/lib/path-security';
 
 // Track running Ralph processes
 const runningProcesses = new Map<string, { pid: number; startTime: string }>();
@@ -17,11 +18,19 @@ export async function POST(
   try {
     const { project } = await params;
 
-    // Decode the project path from base64url
-    const projectPath = Buffer.from(project, 'base64url').toString('utf-8');
+    // SECURITY: Decode and validate the path before any operations
+    const validation = decodeAndValidatePath(project);
+    if (!validation.valid || !validation.resolved) {
+      return NextResponse.json(
+        { ok: false, error: validation.error || 'Invalid project path' },
+        { status: 400 }
+      );
+    }
+
+    const resolvedPath = validation.resolved;
 
     // Validate the project exists
-    const ralphDir = path.join(projectPath, '.ralph');
+    const ralphDir = path.join(resolvedPath, '.ralph');
     try {
       await fs.stat(ralphDir);
     } catch {
@@ -55,26 +64,16 @@ export async function POST(
 
     await fs.writeFile(statusPath, JSON.stringify(status, null, 2));
 
-    // Spawn the Ralph process
-    // In a real implementation, this would call the actual ralph command
-    // For now, we'll simulate by writing to the status file
-    const ralphProcess = spawn('bash', ['-c', `
-      cd "${projectPath}" &&
-      if command -v ralph &> /dev/null; then
-        ralph loop --max-iterations ${maxIterations}
-      else
-        echo "Ralph command not found, simulating..."
-        for i in $(seq 1 ${maxIterations}); do
-          echo '{"iteration": '$i', "maxIterations": ${maxIterations}, "status": "running", "lastUpdate": "'$(date -Iseconds)'"}' > "${ralphDir}/status.json"
-          sleep 5
-        done
-        echo '{"iteration": ${maxIterations}, "maxIterations": ${maxIterations}, "status": "complete", "lastUpdate": "'$(date -Iseconds)'"}' > "${ralphDir}/status.json"
-      fi
-    `], {
+    // Spawn the Ralph process using safe array arguments (no shell interpolation)
+    // First check if ralph command exists
+    const ralphProcess = spawn('ralph', ['loop', '--max-iterations', String(maxIterations)], {
       detached: true,
       stdio: ['ignore', 'pipe', 'pipe'],
-      cwd: projectPath,
+      cwd: resolvedPath,
+      env: { ...process.env, RALPH_PROJECT: resolvedPath },
     });
+
+    // If ralph command doesn't exist, the process will error - that's OK
 
     // Store the process info
     runningProcesses.set(project, {
@@ -119,7 +118,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       pid: ralphProcess.pid,
-      projectPath,
+      projectPath: resolvedPath,
       maxIterations,
       message: 'Ralph loop started',
     });

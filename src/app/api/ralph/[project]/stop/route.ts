@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { decodeAndValidatePath } from '@/lib/path-security';
+
+const execFileAsync = promisify(execFile);
 
 /**
  * POST /api/ralph/[project]/stop
@@ -13,8 +18,16 @@ export async function POST(
   try {
     const { project } = await params;
 
-    // Decode the project path from base64url
-    const projectPath = Buffer.from(project, 'base64url').toString('utf-8');
+    // SECURITY: Decode and validate the path before any operations
+    const validation = decodeAndValidatePath(project);
+    if (!validation.valid || !validation.resolved) {
+      return NextResponse.json(
+        { ok: false, error: validation.error || 'Invalid project path' },
+        { status: 400 }
+      );
+    }
+
+    const projectPath = validation.resolved;
 
     // Validate the project exists
     const ralphDir = path.join(projectPath, '.ralph');
@@ -50,17 +63,12 @@ export async function POST(
 
     // Try to find and kill the Ralph process
     // Look for ralph processes in the project directory
-    const { exec } = await import('child_process');
-    const { promisify } = await import('util');
-    const execAsync = promisify(exec);
-
     let killed = false;
 
     try {
-      // Find processes running in the project directory
-      const { stdout } = await execAsync(
-        `pgrep -f "ralph.*${projectPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" || true`
-      );
+      // SECURITY: Use execFile with array arguments to avoid shell injection
+      // pgrep -f searches for pattern in full command line
+      const { stdout } = await execFileAsync('pgrep', ['-f', `ralph.*${projectPath}`]);
 
       const pids = stdout.trim().split('\n').filter(Boolean);
 
@@ -73,7 +81,7 @@ export async function POST(
         }
       }
     } catch {
-      // pgrep might fail if no processes found
+      // pgrep returns non-zero exit code if no processes found, which is OK
     }
 
     // Update status to stopped/failed

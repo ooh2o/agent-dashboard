@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -15,7 +15,6 @@ import {
   Activity,
 } from 'lucide-react';
 import { ActivityEvent, EventType } from '@/lib/types';
-import { mockActivities } from '@/lib/mock-data';
 import { formatDistanceToNow } from '@/lib/format';
 
 const eventConfig: Record<
@@ -37,24 +36,31 @@ const eventConfig: Record<
 };
 
 export function MiniActivityWidget() {
-  const [events, setEvents] = useState<ActivityEvent[]>(mockActivities.slice(0, 3));
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [isLive, setIsLive] = useState(true);
 
-  // Auto-refresh every 5 seconds (simulated)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate receiving new events by cycling through mock data
-      setEvents((prev) => {
-        const newEvents = [...mockActivities];
-        // Update timestamps to simulate real-time
-        return newEvents.slice(0, 3).map((e, i) => ({
-          ...e,
-          timestamp: new Date(Date.now() - i * 8000),
-        }));
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
+  const fetchActivities = useCallback(async () => {
+    try {
+      const res = await fetch('/api/live/activities?limit=5');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.activities) {
+          setEvents(data.activities.slice(0, 3));
+          setIsLive(true);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch activities:', error);
+      setIsLive(false);
+    }
   }, []);
+
+  // Initial fetch and auto-refresh every 5 seconds
+  useEffect(() => {
+    fetchActivities();
+    const interval = setInterval(fetchActivities, 5000);
+    return () => clearInterval(interval);
+  }, [fetchActivities]);
 
   return (
     <div className="h-full flex flex-col">

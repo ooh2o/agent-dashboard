@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { decodeAndValidatePath } from '@/lib/path-security';
 
 export interface RalphStatus {
   iteration: number;
@@ -25,8 +26,16 @@ export async function GET(
   try {
     const { project } = await params;
 
-    // Decode the project path from base64url
-    const projectPath = Buffer.from(project, 'base64url').toString('utf-8');
+    // SECURITY: Decode and validate the path before any operations
+    const validation = decodeAndValidatePath(project);
+    if (!validation.valid || !validation.resolved) {
+      return NextResponse.json(
+        { ok: false, error: validation.error || 'Invalid project path' },
+        { status: 400 }
+      );
+    }
+
+    const projectPath = validation.resolved;
 
     // Validate the path exists
     const ralphDir = path.join(projectPath, '.ralph');
